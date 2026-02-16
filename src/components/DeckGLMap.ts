@@ -32,6 +32,7 @@ import type {
   DisplacementFlow,
   ClimateAnomaly,
   MapProtestCluster,
+  MapEventCluster,
   MapTechHQCluster,
   MapTechEventCluster,
   MapDatacenterCluster,
@@ -63,6 +64,8 @@ import {
   SPACEPORTS,
   APT_GROUPS,
   CRITICAL_MINERALS,
+  TRAVEL_EVENTS,
+  type TravelEvent,
 } from '@/config';
 import { MapPopup, type PopupType } from './MapPopup';
 import {
@@ -132,7 +135,7 @@ const MAP_INTERACTION_MODE: MapInteractionMode =
 const LAYER_ZOOM_THRESHOLDS: Partial<Record<keyof MapLayers, { minZoom: number; showLabels?: number }>> = {
   bases: { minZoom: 3, showLabels: 5 },
   nuclear: { minZoom: 3 },
-  conflicts: { minZoom: 1, showLabels: 3 },
+  safety: { minZoom: 1, showLabels: 3 },
   economic: { minZoom: 3 },
   natural: { minZoom: 1, showLabels: 2 },
   datacenters: { minZoom: 5 },
@@ -203,7 +206,7 @@ export class DeckGLMap {
   private aisDensity: AisDensityZone[] = [];
   private cableAdvisories: CableAdvisory[] = [];
   private repairShips: RepairShip[] = [];
-  private protests: SocialUnrestEvent[] = [];
+  private events: TravelEvent[] = [];
   private militaryFlights: MilitaryFlight[] = [];
   private militaryFlightClusters: MilitaryFlightCluster[] = [];
   private militaryVessels: MilitaryVessel[] = [];
@@ -218,6 +221,7 @@ export class DeckGLMap {
   private ucdpEvents: UcdpGeoEvent[] = [];
   private displacementFlows: DisplacementFlow[] = [];
   private climateAnomalies: ClimateAnomaly[] = [];
+  private safetyData: Record<string, { score: number; level: string; message: string }> | null = null;
 
   // Country highlight state
   private countryGeoJsonLoaded = false;
@@ -246,11 +250,11 @@ export class DeckGLMap {
 
   private layerCache: Map<string, Layer> = new Map();
   private lastZoomThreshold = 0;
-  private protestSC: Supercluster | null = null;
+  private eventSC: Supercluster | null = null;
   private techHQSC: Supercluster | null = null;
   private techEventSC: Supercluster | null = null;
   private datacenterSC: Supercluster | null = null;
-  private protestClusters: MapProtestCluster[] = [];
+  private eventClusters: MapEventCluster[] = [];
   private techHQClusters: MapTechHQCluster[] = [];
   private techEventClusters: MapTechEventCluster[] = [];
   private datacenterClusters: MapDatacenterCluster[] = [];
@@ -269,6 +273,7 @@ export class DeckGLMap {
     this.container = container;
     this.state = initialState;
     this.hotspots = [...INTEL_HOTSPOTS];
+    this.events = [...TRAVEL_EVENTS];
 
     this.rebuildTechHQSupercluster();
     this.rebuildDatacenterSupercluster();
@@ -444,41 +449,33 @@ export class DeckGLMap {
     return false;
   }
 
-  private rebuildProtestSupercluster(): void {
-    const points = this.protests.map((p, i) => ({
+  private rebuildEventSupercluster(): void {
+    const points = this.events.map((e, i) => ({
       type: 'Feature' as const,
-      geometry: { type: 'Point' as const, coordinates: [p.lon, p.lat] as [number, number] },
+      geometry: { type: 'Point' as const, coordinates: [e.lon, e.lat] as [number, number] },
       properties: {
         index: i,
-        country: p.country,
-        severity: p.severity,
-        eventType: p.eventType,
-        validated: Boolean(p.validated),
-        fatalities: Number.isFinite(p.fatalities) ? Number(p.fatalities) : 0,
+        country: e.country,
+        attendees: e.attendees || 0,
+        type: e.type,
       },
     }));
-    this.protestSC = new Supercluster({
+    this.eventSC = new Supercluster({
       radius: 60,
       maxZoom: 14,
       map: (props: Record<string, unknown>) => ({
         index: Number(props.index ?? 0),
         country: String(props.country ?? ''),
-        maxSeverityRank: props.severity === 'high' ? 2 : props.severity === 'medium' ? 1 : 0,
-        riotCount: props.eventType === 'riot' ? 1 : 0,
-        highSeverityCount: props.severity === 'high' ? 1 : 0,
-        verifiedCount: props.validated ? 1 : 0,
-        totalFatalities: Number(props.fatalities ?? 0) || 0,
+        maxAttendees: Number(props.attendees ?? 0),
+        count: 1,
       }),
       reduce: (acc: Record<string, unknown>, props: Record<string, unknown>) => {
-        acc.maxSeverityRank = Math.max(Number(acc.maxSeverityRank ?? 0), Number(props.maxSeverityRank ?? 0));
-        acc.riotCount = Number(acc.riotCount ?? 0) + Number(props.riotCount ?? 0);
-        acc.highSeverityCount = Number(acc.highSeverityCount ?? 0) + Number(props.highSeverityCount ?? 0);
-        acc.verifiedCount = Number(acc.verifiedCount ?? 0) + Number(props.verifiedCount ?? 0);
-        acc.totalFatalities = Number(acc.totalFatalities ?? 0) + Number(props.totalFatalities ?? 0);
+        acc.maxAttendees = Math.max(Number(acc.maxAttendees ?? 0), Number(props.maxAttendees ?? 0));
+        acc.count = Number(acc.count ?? 0) + 1;
         if (!acc.country && props.country) acc.country = props.country;
       },
     });
-    this.protestSC.load(points);
+    this.eventSC.load(points);
     this.lastSCZoom = -1;
   }
 
@@ -599,70 +596,50 @@ export class DeckGLMap {
     ];
     const boundsKey = `${bbox[0].toFixed(4)}:${bbox[1].toFixed(4)}:${bbox[2].toFixed(4)}:${bbox[3].toFixed(4)}`;
     const layers = this.state.layers;
-    const useProtests = layers.protests && this.protests.length > 0;
+    const useEvents = layers.events && this.events.length > 0;
     const useTechHQ = SITE_VARIANT === 'tech' && layers.techHQs;
     const useTechEvents = SITE_VARIANT === 'tech' && layers.techEvents && this.techEvents.length > 0;
     const useDatacenterClusters = layers.datacenters && zoom < 5;
-    const layerMask = `${Number(useProtests)}${Number(useTechHQ)}${Number(useTechEvents)}${Number(useDatacenterClusters)}`;
+    const layerMask = `${Number(useEvents)}${Number(useTechHQ)}${Number(useTechEvents)}${Number(useDatacenterClusters)}`;
     if (zoom === this.lastSCZoom && boundsKey === this.lastSCBoundsKey && layerMask === this.lastSCMask) return;
     this.lastSCZoom = zoom;
     this.lastSCBoundsKey = boundsKey;
     this.lastSCMask = layerMask;
 
-    if (useProtests && this.protestSC) {
-      this.protestClusters = this.protestSC.getClusters(bbox, zoom).map(f => {
+    if (useEvents && this.eventSC) {
+      this.eventClusters = this.eventSC.getClusters(bbox, zoom).map(f => {
         const coords = f.geometry.coordinates as [number, number];
         if (f.properties.cluster) {
           const props = f.properties as Record<string, unknown>;
-          const leaves = this.protestSC!.getLeaves(f.properties.cluster_id!, DeckGLMap.MAX_CLUSTER_LEAVES);
-          const items = leaves.map(l => this.protests[l.properties.index]).filter((x): x is SocialUnrestEvent => !!x);
-          const maxSeverityRank = Number(props.maxSeverityRank ?? 0);
-          const maxSev = maxSeverityRank >= 2 ? 'high' : maxSeverityRank === 1 ? 'medium' : 'low';
-          const riotCount = Number(props.riotCount ?? 0);
-          const highSeverityCount = Number(props.highSeverityCount ?? 0);
-          const verifiedCount = Number(props.verifiedCount ?? 0);
-          const totalFatalities = Number(props.totalFatalities ?? 0);
+          const leaves = this.eventSC!.getLeaves(f.properties.cluster_id!, DeckGLMap.MAX_CLUSTER_LEAVES);
+          const items = leaves.map(l => this.events[l.properties.index]).filter((x): x is TravelEvent => !!x);
+          const maxAttendees = Number(props.maxAttendees ?? 0);
           const clusterCount = Number(f.properties.point_count ?? items.length);
-          const latestRiotEventTimeMs = items.reduce((max, it) => {
-            if (it.eventType !== 'riot' || it.sourceType === 'gdelt') return max;
-            const ts = it.time.getTime();
-            return Number.isFinite(ts) ? Math.max(max, ts) : max;
-          }, 0);
+
           return {
-            id: `pc-${f.properties.cluster_id}`,
+            id: `ec-${f.properties.cluster_id}`,
             lat: coords[1], lon: coords[0],
             count: clusterCount,
             items,
             country: String(props.country ?? items[0]?.country ?? ''),
-            maxSeverity: maxSev as 'low' | 'medium' | 'high',
-            hasRiot: riotCount > 0,
-            latestRiotEventTimeMs: latestRiotEventTimeMs || undefined,
-            totalFatalities,
-            riotCount,
-            highSeverityCount,
-            verifiedCount,
+            maxAttendees,
             sampled: items.length < clusterCount,
           };
         }
-        const item = this.protests[f.properties.index]!;
+        const item = this.events[f.properties.index]!;
         return {
-          id: `pp-${f.properties.index}`, lat: item.lat, lon: item.lon,
-          count: 1, items: [item], country: item.country,
-          maxSeverity: item.severity, hasRiot: item.eventType === 'riot',
-          latestRiotEventTimeMs:
-            item.eventType === 'riot' && item.sourceType !== 'gdelt' && Number.isFinite(item.time.getTime())
-              ? item.time.getTime()
-              : undefined,
-          totalFatalities: item.fatalities ?? 0,
-          riotCount: item.eventType === 'riot' ? 1 : 0,
-          highSeverityCount: item.severity === 'high' ? 1 : 0,
-          verifiedCount: item.validated ? 1 : 0,
-          sampled: false,
+          id: `event-${item.id}`,
+          lat: coords[1], lon: coords[0],
+          count: 1,
+          items: [item],
+          country: item.country || '',
+          maxAttendees: item.attendees || 0,
         };
-      });
+      }).filter((c): c is MapEventCluster => c !== null);
     } else {
-      this.protestClusters = [];
+      this.eventClusters = [];
     }
+
 
     if (useTechHQ && this.techHQSC) {
       this.techHQClusters = this.techHQSC.getClusters(bbox, zoom).map(f => {
@@ -814,7 +791,7 @@ export class DeckGLMap {
     }
 
     // Conflict zones layer
-    if (mapLayers.conflicts) {
+    if (mapLayers.safety) {
       layers.push(this.createConflictZonesLayer());
     }
 
@@ -918,9 +895,9 @@ export class DeckGLMap {
       layers.push(this.createFlightDelaysLayer());
     }
 
-    // Protests layer (Supercluster-based deck.gl layers)
-    if (mapLayers.protests && this.protests.length > 0) {
-      layers.push(...this.createProtestClusterLayers());
+    // Events layer (Supercluster-based deck.gl layers)
+    if (mapLayers.events && this.events.length > 0) {
+      layers.push(...this.createEventClusterLayers());
     }
 
     // Military vessels layer
@@ -1650,65 +1627,47 @@ export class DeckGLMap {
     });
   }
 
-  private createProtestClusterLayers(): Layer[] {
+  private createEventClusterLayers(): Layer[] {
     this.updateClusterData();
     const layers: Layer[] = [];
+    const zoom = this.maplibreMap?.getZoom() || 2;
 
-    layers.push(new ScatterplotLayer<MapProtestCluster>({
-      id: 'protest-clusters-layer',
-      data: this.protestClusters,
+    layers.push(new ScatterplotLayer<MapEventCluster>({
+      id: 'event-clusters-layer',
+      data: this.eventClusters,
       getPosition: d => [d.lon, d.lat],
-      getRadius: d => 15000 + d.count * 2000,
+      getRadius: d => 10000 + (d.maxAttendees || 0) / 100, // Scale by attendees
       radiusMinPixels: 6,
-      radiusMaxPixels: 22,
+      radiusMaxPixels: 24,
       getFillColor: d => {
-        if (d.hasRiot) return [220, 40, 40, 200] as [number, number, number, number];
-        if (d.maxSeverity === 'high') return [255, 80, 60, 180] as [number, number, number, number];
-        if (d.maxSeverity === 'medium') return [255, 160, 40, 160] as [number, number, number, number];
-        return [255, 220, 80, 140] as [number, number, number, number];
+        const attendees = d.maxAttendees || 0;
+        if (attendees > 500000) return [239, 68, 68, 200]; // red
+        if (attendees > 100000) return [249, 115, 22, 200]; // orange
+        if (attendees > 50000) return [234, 179, 8, 200]; // yellow
+        return [34, 197, 94, 200]; // green
       },
       pickable: true,
-      updateTriggers: { getRadius: this.lastSCZoom, getFillColor: this.lastSCZoom },
+      updateTriggers: { radiusScale: zoom },
     }));
 
-    layers.push(this.createGhostLayer('protest-clusters-layer', this.protestClusters, d => [d.lon, d.lat], { radiusMinPixels: 14 }));
+    layers.push(this.createGhostLayer('event-clusters-layer', this.eventClusters, d => [d.lon, d.lat], { radiusMinPixels: 14 }));
 
-    const multiClusters = this.protestClusters.filter(c => c.count > 1);
+    const multiClusters = this.eventClusters.filter(c => c.count > 1);
     if (multiClusters.length > 0) {
-      layers.push(new TextLayer<MapProtestCluster>({
-        id: 'protest-clusters-badge',
+      layers.push(new TextLayer<MapEventCluster>({
+        id: 'event-clusters-badge',
         data: multiClusters,
-        getText: d => String(d.count),
         getPosition: d => [d.lon, d.lat],
+        getText: d => d.count > 99 ? '99+' : d.count.toString(),
+        getSize: 12,
+        getColor: [255, 255, 255, 255],
+        fontFamily: 'system-ui, sans-serif',
+        fontWeight: 700,
+        pickable: false,
         background: true,
         getBackgroundColor: [0, 0, 0, 180],
         backgroundPadding: [4, 2, 4, 2],
-        getColor: [255, 255, 255, 255],
-        getSize: 12,
         getPixelOffset: [0, -14],
-        pickable: false,
-        fontFamily: 'system-ui, sans-serif',
-        fontWeight: 700,
-      }));
-    }
-
-    const pulseClusters = this.protestClusters.filter(c => c.maxSeverity === 'high' || c.hasRiot);
-    if (pulseClusters.length > 0) {
-      const pulse = 1.0 + 0.8 * (0.5 + 0.5 * Math.sin((this.pulseTime || Date.now()) / 400));
-      layers.push(new ScatterplotLayer<MapProtestCluster>({
-        id: 'protest-clusters-pulse',
-        data: pulseClusters,
-        getPosition: d => [d.lon, d.lat],
-        getRadius: d => 15000 + d.count * 2000,
-        radiusScale: pulse,
-        radiusMinPixels: 8,
-        radiusMaxPixels: 30,
-        stroked: true,
-        filled: false,
-        getLineColor: d => d.hasRiot ? [220, 40, 40, 120] as [number, number, number, number] : [255, 80, 60, 100] as [number, number, number, number],
-        lineWidthMinPixels: 1.5,
-        pickable: false,
-        updateTriggers: { radiusScale: this.pulseTime },
       }));
     }
 
@@ -1933,17 +1892,8 @@ export class DeckGLMap {
   }
 
   private hasRecentRiot(now = Date.now(), windowMs = 2 * 60 * 60 * 1000): boolean {
-    const hasRecentClusterRiot = this.protestClusters.some(c =>
-      c.hasRiot && c.latestRiotEventTimeMs != null && (now - c.latestRiotEventTimeMs) < windowMs
-    );
-    if (hasRecentClusterRiot) return true;
-
-    // Fallback to raw protests because syncPulseAnimation can run before cluster data refreshes.
-    return this.protests.some((p) => {
-      if (p.eventType !== 'riot' || p.sourceType === 'gdelt') return false;
-      const ts = p.time.getTime();
-      return Number.isFinite(ts) && (now - ts) < windowMs;
-    });
+    // Events don't have riot data, always return false
+    return false;
   }
 
   private needsPulseAnimation(now = Date.now()): boolean {
@@ -2084,14 +2034,14 @@ export class DeckGLMap {
         return { html: `<div class="deckgl-tooltip"><strong>${text(obj.name || 'Vessel Cluster')}</strong><br/>${obj.vesselCount || 0} vessels<br/>${text(obj.activityType)}</div>` };
       case 'military-flight-clusters-layer':
         return { html: `<div class="deckgl-tooltip"><strong>${text(obj.name || 'Flight Cluster')}</strong><br/>${obj.flightCount || 0} aircraft<br/>${text(obj.activityType)}</div>` };
-      case 'protests-layer':
-        return { html: `<div class="deckgl-tooltip"><strong>${text(obj.title)}</strong><br/>${text(obj.country)}</div>` };
-      case 'protest-clusters-layer':
+      case 'events-layer':
+        return { html: `<div class="deckgl-tooltip"><strong>${text(obj.name)}</strong><br/>${text(obj.location || obj.country)}</div>` };
+      case 'event-clusters-layer':
         if (obj.count === 1) {
           const item = obj.items?.[0];
-          return { html: `<div class="deckgl-tooltip"><strong>${text(item?.title || 'Protest')}</strong><br/>${text(item?.city || item?.country || '')}</div>` };
+          return { html: `<div class="deckgl-tooltip"><strong>${text(item?.name || 'Event')}</strong><br/>${text(item?.location || item?.country || '')}</div>` };
         }
-        return { html: `<div class="deckgl-tooltip"><strong>${obj.count} protests</strong><br/>${text(obj.country)}</div>` };
+        return { html: `<div class="deckgl-tooltip"><strong>${obj.count} events</strong><br/>${text(obj.country)}</div>` };
       case 'tech-hq-clusters-layer':
         if (obj.count === 1) {
           const hq = obj.items?.[0];
@@ -2215,21 +2165,18 @@ export class DeckGLMap {
     }
 
     // Handle cluster layers with single/multi logic
-    if (layerId === 'protest-clusters-layer') {
-      const cluster = info.object as MapProtestCluster;
+    if (layerId === 'event-clusters-layer') {
+      const cluster = info.object as MapEventCluster;
       if (cluster.count === 1 && cluster.items[0]) {
-        this.popup.show({ type: 'protest', data: cluster.items[0], x: info.x, y: info.y });
+        this.popup.show({ type: 'event', data: cluster.items[0], x: info.x, y: info.y });
       } else {
         this.popup.show({
-          type: 'protestCluster',
+          type: 'eventCluster',
           data: {
             items: cluster.items,
             country: cluster.country,
             count: cluster.count,
-            riotCount: cluster.riotCount,
-            highSeverityCount: cluster.highSeverityCount,
-            verifiedCount: cluster.verifiedCount,
-            totalFatalities: cluster.totalFatalities,
+            maxAttendees: cluster.maxAttendees,
             sampled: cluster.sampled,
           },
           x: info.x,
@@ -2320,7 +2267,7 @@ export class DeckGLMap {
       'weather-layer': 'weather',
       'outages-layer': 'outage',
       'cyber-threats-layer': 'cyberThreat',
-      'protests-layer': 'protest',
+      'events-layer': 'event',
       'military-flights-layer': 'militaryFlight',
       'military-vessels-layer': 'militaryVessel',
       'military-vessel-clusters-layer': 'militaryVesselCluster',
@@ -2467,8 +2414,8 @@ export class DeckGLMap {
           { key: 'fires', label: 'Fires', icon: '&#128293;' },
         ]
       : [
+          { key: 'safety', label: 'Dest. Safety', icon: '&#128737;' },
           { key: 'hotspots', label: 'Intel Hotspots', icon: '&#127919;' },
-          { key: 'conflicts', label: 'Conflict Zones', icon: '&#9876;' },
           { key: 'bases', label: 'Military Bases', icon: '&#127963;' },
           { key: 'nuclear', label: 'Nuclear Sites', icon: '&#9762;' },
           { key: 'irradiators', label: 'Gamma Irradiators', icon: '&#9888;' },
@@ -2479,7 +2426,7 @@ export class DeckGLMap {
           { key: 'military', label: 'Military Activity', icon: '&#9992;' },
           { key: 'ais', label: 'Ship Traffic', icon: '&#128674;' },
           { key: 'flights', label: 'Flight Delays', icon: '&#9992;' },
-          { key: 'protests', label: 'Protests', icon: '&#128226;' },
+          { key: 'events', label: 'Dest. Events', icon: '&#127881;' },
           { key: 'ucdpEvents', label: 'UCDP Events', icon: '&#9876;' },
           { key: 'displacement', label: 'Displacement Flows', icon: '&#128101;' },
           { key: 'climate', label: 'Climate Anomalies', icon: '&#127787;' },
@@ -2942,9 +2889,9 @@ export class DeckGLMap {
     this.render();
   }
 
-  public setProtests(events: SocialUnrestEvent[]): void {
-    this.protests = events;
-    this.rebuildProtestSupercluster();
+  public setEvents(events: TravelEvent[]): void {
+    this.events = events;
+    this.rebuildEventSupercluster();
     this.render();
     this.syncPulseAnimation();
   }
@@ -3206,6 +3153,11 @@ export class DeckGLMap {
     this.state.layers[layer] = !this.state.layers[layer];
     const toggle = this.container.querySelector(`.layer-toggle[data-layer="${layer}"] input`) as HTMLInputElement;
     if (toggle) toggle.checked = this.state.layers[layer];
+    
+    if (layer === 'safety') {
+      this.updateSafetyLayer();
+    }
+    
     this.render();
     this.onLayerChange?.(layer, this.state.layers[layer]);
   }
@@ -3409,6 +3361,19 @@ export class DeckGLMap {
             'fill-opacity': 0,
           },
         });
+        // Safety score choropleth layer
+        this.maplibreMap.addLayer({
+          id: 'country-safety-fill',
+          type: 'fill',
+          source: 'country-boundaries',
+          layout: {
+            visibility: 'none',
+          },
+          paint: {
+            'fill-color': 'rgba(0,0,0,0)',
+            'fill-opacity': 0.6,
+          },
+        });
         this.maplibreMap.addLayer({
           id: 'country-hover-fill',
           type: 'fill',
@@ -3480,7 +3445,7 @@ export class DeckGLMap {
   public highlightCountry(code: string): void {
     if (!this.maplibreMap || !this.countryGeoJsonLoaded) return;
     // Update MapLibre filter to highlight this country
-    const filter: maplibregl.FilterSpecification = ['==', ['get', 'ISO3166-1-Alpha-2'], code];
+    const filter: any = ['==', ['get', 'ISO3166-1-Alpha-2'], code];
     try {
       this.maplibreMap.setFilter('country-highlight-fill', filter);
       this.maplibreMap.setFilter('country-highlight-border', filter);
@@ -3490,7 +3455,7 @@ export class DeckGLMap {
   public clearCountryHighlight(): void {
     if (!this.maplibreMap) return;
     // Clear highlight filter
-    const noMatch: maplibregl.FilterSpecification = ['==', ['get', 'ISO3166-1-Alpha-2'], ''];
+    const noMatch: any = ['==', ['get', 'ISO3166-1-Alpha-2'], ''];
     try {
       this.maplibreMap.setFilter('country-highlight-fill', noMatch);
       this.maplibreMap.setFilter('country-highlight-border', noMatch);
@@ -3520,5 +3485,39 @@ export class DeckGLMap {
     this.maplibreMap?.remove();
 
     this.container.innerHTML = '';
+  }
+  public setSafetyData(data: Record<string, { score: number; level: string; message: string }>): void {
+    this.safetyData = data;
+    this.updateSafetyLayer();
+  }
+
+  private updateSafetyLayer(): void {
+    if (!this.maplibreMap || !this.maplibreMap.getLayer('country-safety-fill')) return;
+
+    if (!this.state.layers.safety || !this.safetyData) {
+      this.maplibreMap.setLayoutProperty('country-safety-fill', 'visibility', 'none');
+      return;
+    }
+
+    this.maplibreMap.setLayoutProperty('country-safety-fill', 'visibility', 'visible');
+
+    // Build match expression for coloring by ISO code
+    // usage: ['match', ['get', 'ISO3166-1-Alpha-2'], 'US', color, 'CA', color, defaultColor]
+    const expression: any[] = ['match', ['get', 'ISO3166-1-Alpha-2']];
+    
+    Object.entries(this.safetyData).forEach(([iso, data]) => {
+      let color = '#10b981'; // low
+      if (data.score >= 4.5) color = '#ef4444'; // extreme
+      else if (data.score >= 3.5) color = '#f97316'; // high
+      else if (data.score >= 2.5) color = '#eab308'; // elevated
+      else if (data.score >= 1.5) color = '#84cc16'; // moderate
+      
+      expression.push(iso);
+      expression.push(color);
+    });
+
+    expression.push('rgba(0,0,0,0)'); // default transparent
+
+    this.maplibreMap.setPaintProperty('country-safety-fill', 'fill-color', expression);
   }
 }

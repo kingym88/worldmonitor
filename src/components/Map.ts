@@ -1,9 +1,7 @@
 import * as d3 from 'd3';
-import * as topojson from 'topojson-client';
 import { escapeHtml } from '@/utils/sanitize';
-import type { Topology, GeometryCollection } from 'topojson-specification';
-import type { Feature, Geometry } from 'geojson';
-import type { MapLayers, Hotspot, NewsItem, Earthquake, InternetOutage, RelatedAsset, AssetType, AisDisruptionEvent, AisDensityZone, CableAdvisory, RepairShip, SocialUnrestEvent, AirportDelayAlert, MilitaryFlight, MilitaryVessel, MilitaryFlightCluster, MilitaryVesselCluster, NaturalEvent, CyberThreat } from '@/types';
+import type { Feature, Geometry, FeatureCollection } from 'geojson';
+import type { MapLayers, Hotspot, NewsItem, Earthquake, InternetOutage, RelatedAsset, AssetType, AisDisruptionEvent, AisDensityZone, CableAdvisory, RepairShip, AirportDelayAlert, MilitaryFlight, MilitaryVessel, MilitaryFlightCluster, MilitaryVesselCluster, NaturalEvent, CyberThreat } from '@/types';
 import type { TechHubActivity } from '@/services/tech-activity';
 import type { GeoHubActivity } from '@/services/geo-activity';
 import { getNaturalEventIcon } from '@/services/eonet';
@@ -21,7 +19,6 @@ import {
   GAMMA_IRRADIATORS,
   PIPELINES,
   PIPELINE_COLORS,
-  SANCTIONED_COUNTRIES,
   STRATEGIC_WATERWAYS,
   APT_GROUPS,
   ECONOMIC_CENTERS,
@@ -76,11 +73,7 @@ interface TechEventMarker {
   daysUntil: number;
 }
 
-interface WorldTopology extends Topology {
-  objects: {
-    countries: GeometryCollection;
-  };
-}
+
 
 export class MapComponent {
   private static readonly LAYER_ZOOM_THRESHOLDS: Partial<
@@ -100,7 +93,7 @@ export class MapComponent {
   private clusterCanvas: HTMLCanvasElement;
   private clusterGl: WebGLRenderingContext | null = null;
   private state: MapState;
-  private worldData: WorldTopology | null = null;
+  private worldData: any | null = null;
   private countryFeatures: Feature<Geometry>[] | null = null;
   private baseLayerGroup: d3.Selection<SVGGElement, unknown, null, undefined> | null = null;
   private dynamicLayerGroup: d3.Selection<SVGGElement, unknown, null, undefined> | null = null;
@@ -703,14 +696,10 @@ export class MapComponent {
 
   private async loadMapData(): Promise<void> {
     try {
-      const worldResponse = await fetch(MAP_URLS.world);
+      const worldResponse = await fetch('/data/countries.geojson');
       this.worldData = await worldResponse.json();
-      if (this.worldData) {
-        const countries = topojson.feature(
-          this.worldData,
-          this.worldData.objects.countries
-        );
-        this.countryFeatures = 'features' in countries ? countries.features : [countries];
+      if (this.worldData && this.worldData.type === 'FeatureCollection') {
+        this.countryFeatures = this.worldData.features;
       }
       this.baseRendered = false;
       this.render();
@@ -1087,20 +1076,21 @@ export class MapComponent {
     
     const defaultFill = '#0d3028';
     const useSafety = this.state.layers.safety;
+    const self = this;
 
-    this.baseLayerGroup.selectAll('.country').each(function (datum) {
+    this.baseLayerGroup.selectAll('.country').each(function (datum: unknown) {
       const el = d3.select(this);
       const feature = datum as Feature<Geometry> & { id?: string; properties?: { name?: string, iso_a2?: string } };
       
       // Try to find ISO code from properties or id
-      const iso = feature.id as string || feature.properties?.iso_a2; 
+      const iso = feature.properties?.['ISO3166-1-Alpha-2'] || feature.properties?.iso_a2 || feature.id as string; 
 
-      if (!useSafety || !iso || !this.safetyData || !this.safetyData[iso]) {
+      if (!useSafety || !iso || !self.safetyData || !self.safetyData[iso]) {
         el.attr('fill', defaultFill);
         return;
       }
 
-      const safety = this.safetyData[iso];
+      const safety = self.safetyData[iso];
       let color = safetyColors.low;
       if (safety.score >= 4.5) color = safetyColors.extreme;
       else if (safety.score >= 3.5) color = safetyColors.high;
@@ -1112,9 +1102,9 @@ export class MapComponent {
 
       // Update tooltip title if hovered (simplified logic for D3)
       el.select('title').remove();
-      el.append('title').text(`${safety.name}: ${safety.level} (${safety.score.toFixed(1)})`);
+      el.append('title').text(`${feature.properties?.name || iso}: ${safety.level} (${safety.score.toFixed(1)})`);
 
-    }.bind(this));
+    });
   }
 
   // Generic marker clustering - groups markers within pixelRadius into clusters
@@ -3257,6 +3247,11 @@ export class MapComponent {
         spot.level = levels[spot.name] as 'high' | 'elevated' | 'low';
       }
     });
+    this.render();
+  }
+
+  public setSafetyData(data: Record<string, { score: number; level: string; message: string }>): void {
+    this.safetyData = data;
     this.render();
   }
 }

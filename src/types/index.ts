@@ -1176,6 +1176,17 @@ export interface MapProtestCluster {
   sampled?: boolean;
 }
 
+export interface MapEventCluster {
+  id: string;
+  lat: number;
+  lon: number;
+  count: number;
+  items: any[]; // TravelEvent[]
+  country: string;
+  maxAttendees: number;
+  sampled?: boolean;
+}
+
 export interface MapTechHQCluster {
   id: string;
   lat: number;

@@ -201,7 +201,7 @@ export const DEFAULT_PANELS: Record<string, PanelConfig> = {
 // Tech-focused map layers (subset)
 export const DEFAULT_MAP_LAYERS: MapLayers = {
   // Keep only relevant layers, set others to false
-  conflicts: false,
+  safety: false,
   bases: false,
   cables: true,
   pipelines: false,
@@ -216,7 +216,7 @@ export const DEFAULT_MAP_LAYERS: MapLayers = {
   outages: true,
   cyberThreats: false,
   datacenters: true,
-  protests: false,
+  events: false,
   flights: false,
   military: false,
   natural: true,
@@ -236,7 +236,7 @@ export const DEFAULT_MAP_LAYERS: MapLayers = {
 
 // Mobile defaults for tech variant
 export const MOBILE_DEFAULT_MAP_LAYERS: MapLayers = {
-  conflicts: false,
+  safety: false,
   bases: false,
   cables: false,
   pipelines: false,
@@ -251,7 +251,7 @@ export const MOBILE_DEFAULT_MAP_LAYERS: MapLayers = {
   outages: true,
   cyberThreats: false,
   datacenters: true,
-  protests: false,
+  events: false,
   flights: false,
   military: false,
   natural: true,

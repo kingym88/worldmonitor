@@ -1,10 +1,10 @@
 import { Panel } from './Panel';
 import type { FredSeries } from '@/services/fred';
 import type { OilAnalytics } from '@/services/oil-analytics';
-import type { SpendingSummary } from '@/services/usa-spending';
+
 import { getChangeClass, formatChange } from '@/services/fred';
 import { formatOilValue, getTrendIndicator, getTrendColor } from '@/services/oil-analytics';
-import { formatAwardAmount, getAwardTypeIcon } from '@/services/usa-spending';
+
 import { escapeHtml } from '@/utils/sanitize';
 
 type TabId = 'indicators' | 'oil' | 'spending';
@@ -12,7 +12,7 @@ type TabId = 'indicators' | 'oil' | 'spending';
 export class EconomicPanel extends Panel {
   private fredData: FredSeries[] = [];
   private oilData: OilAnalytics | null = null;
-  private spendingData: SpendingSummary | null = null;
+
   private lastUpdate: Date | null = null;
   private activeTab: TabId = 'indicators';
 
@@ -31,10 +31,7 @@ export class EconomicPanel extends Panel {
     this.render();
   }
 
-  public updateSpending(data: SpendingSummary): void {
-    this.spendingData = data;
-    this.render();
-  }
+
 
   public setLoading(loading: boolean): void {
     if (loading) {
@@ -44,7 +41,7 @@ export class EconomicPanel extends Panel {
 
   private render(): void {
     const hasOil = this.oilData && (this.oilData.wtiPrice || this.oilData.brentPrice);
-    const hasSpending = this.spendingData && this.spendingData.awards.length > 0;
+    // Spending logic removed for Travel Monitor
 
     // Build tabs HTML
     const tabsHtml = `
@@ -182,33 +179,5 @@ export class EconomicPanel extends Panel {
     `;
   }
 
-  private renderSpending(): string {
-    if (!this.spendingData || this.spendingData.awards.length === 0) {
-      return '<div class="economic-empty">No recent government awards</div>';
-    }
 
-    const { awards, totalAmount, periodStart, periodEnd } = this.spendingData;
-
-    return `
-      <div class="spending-summary">
-        <div class="spending-total">
-          ${escapeHtml(formatAwardAmount(totalAmount))} in ${escapeHtml(String(awards.length))} awards
-          <span class="spending-period">${escapeHtml(periodStart)} – ${escapeHtml(periodEnd)}</span>
-        </div>
-      </div>
-      <div class="spending-list">
-        ${awards.slice(0, 8).map(award => `
-          <div class="spending-award">
-            <div class="award-header">
-              <span class="award-icon">${escapeHtml(getAwardTypeIcon(award.awardType))}</span>
-              <span class="award-amount">${escapeHtml(formatAwardAmount(award.amount))}</span>
-            </div>
-            <div class="award-recipient">${escapeHtml(award.recipientName)}</div>
-            <div class="award-agency">${escapeHtml(award.agency)}</div>
-            ${award.description ? `<div class="award-desc">${escapeHtml(award.description.slice(0, 100))}${award.description.length > 100 ? '...' : ''}</div>` : ''}
-          </div>
-        `).join('')}
-      </div>
-    `;
-  }
 }

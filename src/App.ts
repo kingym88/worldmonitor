@@ -13,7 +13,7 @@ import {
   SITE_VARIANT,
   TRAVEL_EVENTS,
 } from '@/config';
-import { fetchCategoryFeeds, fetchMultipleStocks, fetchCrypto, fetchPredictions, fetchEarthquakes, fetchWeatherAlerts, fetchFredData, fetchInternetOutages, isOutagesConfigured, fetchAisSignals, initAisStream, getAisStatus, disconnectAisStream, isAisConfigured, fetchCableActivity, fetchFlightDelays, fetchMilitaryFlights, fetchMilitaryVessels, initMilitaryVesselStream, isMilitaryVesselTrackingConfigured, initDB, updateBaseline, calculateDeviation, addToSignalHistory, saveSnapshot, cleanOldSnapshots, analysisWorker, fetchPizzIntStatus, fetchGdeltTensions, fetchNaturalEvents, fetchRecentAwards, fetchOilAnalytics, fetchCyberThreats, drainTrendingSignals } from '@/services';
+import { fetchCategoryFeeds, fetchMultipleStocks, fetchCrypto, fetchPredictions, fetchEarthquakes, fetchWeatherAlerts, fetchFredData, fetchInternetOutages, isOutagesConfigured, fetchAisSignals, initAisStream, getAisStatus, disconnectAisStream, isAisConfigured, fetchCableActivity, fetchFlightDelays, fetchMilitaryFlights, fetchMilitaryVessels, initMilitaryVesselStream, isMilitaryVesselTrackingConfigured, initDB, updateBaseline, calculateDeviation, addToSignalHistory, saveSnapshot, cleanOldSnapshots, analysisWorker, fetchPizzIntStatus, fetchGdeltTensions, fetchNaturalEvents, fetchOilAnalytics, fetchCyberThreats, drainTrendingSignals } from '@/services';
 import { fetchCountryMarkets } from '@/services/polymarket';
 import { mlWorker } from '@/services/ml-worker';
 import { clusterNewsHybrid } from '@/services/clustering';
@@ -156,7 +156,7 @@ export class App {
   private isIdle = false;
   private readonly IDLE_PAUSE_MS = 2 * 60 * 1000; // 2 minutes - pause animations when idle
   private disabledSources: Set<string> = new Set();
-  private initialLoadComplete = false;
+
 
   private criticalBannerEl: HTMLElement | null = null;
   private countryBriefPage: CountryBriefPage | null = null;
@@ -1682,12 +1682,12 @@ export class App {
     this.newsPanels['politics'] = politicsPanel;
     this.panels['politics'] = politicsPanel;
 
-    const techPanel = new NewsPanel('tech', 'Technology / AI');
+    const techPanel = new NewsPanel('tech', 'Travel Tech & MarTech');
     this.attachRelatedAssetHandlers(techPanel);
     this.newsPanels['tech'] = techPanel;
     this.panels['tech'] = techPanel;
 
-    const financePanel = new NewsPanel('finance', 'Financial News');
+    const financePanel = new NewsPanel('finance', 'Travel & Hospitality Markets');
     this.attachRelatedAssetHandlers(financePanel);
     this.newsPanels['finance'] = financePanel;
     this.panels['finance'] = financePanel;
@@ -1720,10 +1720,25 @@ export class App {
     this.newsPanels['gov'] = govPanel;
     this.panels['gov'] = govPanel;
 
-    const intelPanel = new NewsPanel('intel', 'Intel Feed');
-    this.attachRelatedAssetHandlers(intelPanel);
-    this.newsPanels['intel'] = intelPanel;
-    this.panels['intel'] = intelPanel;
+    const socialPanel = new NewsPanel('social', 'Social Media Trends');
+    this.attachRelatedAssetHandlers(socialPanel);
+    this.newsPanels['social'] = socialPanel;
+    this.panels['social'] = socialPanel;
+
+    const campaignsPanel = new NewsPanel('campaigns', 'Brand Campaigns');
+    this.attachRelatedAssetHandlers(campaignsPanel);
+    this.newsPanels['campaigns'] = campaignsPanel;
+    this.panels['campaigns'] = campaignsPanel;
+
+    const loyaltyPanel = new NewsPanel('loyalty', 'Loyalty Programs');
+    this.attachRelatedAssetHandlers(loyaltyPanel);
+    this.newsPanels['loyalty'] = loyaltyPanel;
+    this.panels['loyalty'] = loyaltyPanel;
+
+    const researchPanel = new NewsPanel('research', 'Travel Research');
+    this.attachRelatedAssetHandlers(researchPanel);
+    this.newsPanels['research'] = researchPanel;
+    this.panels['research'] = researchPanel;
 
     const cryptoPanel = new CryptoPanel();
     this.panels['crypto'] = cryptoPanel;
@@ -2771,7 +2786,7 @@ export class App {
     }
 
     this.allNews = collectedNews;
-    this.initialLoadComplete = true;
+
     maybeShowDownloadBanner();
     // Temporal baseline: report news volume
     updateAndCheck([
@@ -3228,6 +3243,16 @@ export class App {
 
     // Now trigger CII refresh with all intelligence data
     (this.panels['cii'] as CIIPanel)?.refresh();
+    const ciiScores = calculateCII();
+    const safetyData: Record<string, { score: number; level: string; message: string }> = {};
+    ciiScores.forEach(s => {
+      safetyData[s.code] = {
+        score: s.score,
+        level: s.level,
+        message: `${s.level} Risk`,
+      };
+    });
+    this.map?.setSafetyData(safetyData);
     console.log('[Intelligence] All signals loaded for CII calculation');
   }
 
@@ -3429,15 +3454,7 @@ export class App {
     }
   }
 
-  private async loadGovernmentSpending(): Promise<void> {
-    const economicPanel = this.panels['economic'] as EconomicPanel;
-    try {
-      const data = await fetchRecentAwards({ daysBack: 7, limit: 15 });
-      economicPanel?.updateSpending(data);
-    } catch (e) {
-      console.error('[App] Government spending failed:', e);
-    }
-  }
+
 
   private updateMonitorResults(): void {
     const monitorPanel = this.panels['monitors'] as MonitorPanel;
@@ -3591,7 +3608,7 @@ export class App {
     this.scheduleRefresh('weather', () => this.loadWeatherAlerts(), 10 * 60 * 1000, () => this.mapLayers.weather);
     this.scheduleRefresh('fred', () => this.loadFredData(), 30 * 60 * 1000);
     this.scheduleRefresh('oil', () => this.loadOilAnalytics(), 30 * 60 * 1000);
-    this.scheduleRefresh('spending', () => this.loadGovernmentSpending(), 60 * 60 * 1000);
+
 
     // Refresh intelligence signals for CII (geopolitical variant only)
     // This handles outages, protests, military - updates map when layers enabled

@@ -50,7 +50,7 @@ export const DEFAULT_PANELS: Record<string, PanelConfig> = {
 
 // Map layers for geopolitical view
 export const DEFAULT_MAP_LAYERS: MapLayers = {
-  conflicts: true,
+  safety: true,
   bases: true,
   cables: false,
   pipelines: false,
@@ -65,7 +65,7 @@ export const DEFAULT_MAP_LAYERS: MapLayers = {
   outages: true,
   cyberThreats: false,
   datacenters: false,
-  protests: false,
+  events: false,
   flights: false,
   military: false,
   natural: true,
@@ -85,7 +85,7 @@ export const DEFAULT_MAP_LAYERS: MapLayers = {
 
 // Mobile-specific defaults for geopolitical
 export const MOBILE_DEFAULT_MAP_LAYERS: MapLayers = {
-  conflicts: true,
+  safety: true,
   bases: false,
   cables: false,
   pipelines: false,
@@ -100,7 +100,7 @@ export const MOBILE_DEFAULT_MAP_LAYERS: MapLayers = {
   outages: true,
   cyberThreats: false,
   datacenters: false,
-  protests: false,
+  events: false,
   flights: false,
   military: false,
   natural: true,

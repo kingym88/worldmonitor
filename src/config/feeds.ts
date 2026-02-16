@@ -1,3 +1,4 @@
+/// <reference types="vite/client" />
 import type { Feed } from '@/types';
 import { SITE_VARIANT } from './variant';
 
@@ -341,119 +342,78 @@ export function isStateAffiliatedSource(sourceName: string): boolean {
 
 const FULL_FEEDS: Record<string, Feed[]> = {
   politics: [
-    { name: 'BBC World', url: rss('https://feeds.bbci.co.uk/news/world/rss.xml') },
-    { name: 'NPR News', url: rss('https://feeds.npr.org/1001/rss.xml') },
-    { name: 'Guardian World', url: rss('https://www.theguardian.com/world/rss') },
-    { name: 'AP News', url: rss('https://news.google.com/rss/search?q=site:apnews.com&hl=en-US&gl=US&ceid=US:en') },
-    { name: 'Reuters World', url: rss('https://news.google.com/rss/search?q=site:reuters.com+world&hl=en-US&gl=US&ceid=US:en') },
-    { name: 'Politico', url: rss('https://www.politico.com/rss/politicopicks.xml') },
-    { name: 'The Diplomat', url: rss('https://thediplomat.com/feed/') },
+    { name: 'Skift', url: rss('https://skift.com/feed') },
+    { name: 'PhocusWire', url: rss('https://www.phocuswire.com/rss') },
+    { name: 'Travel Weekly', url: rss('https://www.travelweekly.com/rss') },
+    { name: 'TTG Media', url: rss('https://www.ttgmedia.com/rss/news') },
+    { name: 'UNWTO News', url: rss('https://www.unwto.org/news/rss') },
+    { name: 'United Hub', url: rss('https://hub.united.com/feed') },
+    { name: 'Delta News Hub', url: rss('https://news.delta.com/rss.xml') },
+    { name: 'Marriott News', url: rss('https://news.marriott.com/news.rss') },
+    { name: 'Booking.com News', url: rss('https://news.booking.com/rss') },
   ],
   middleeast: [
-    { name: 'BBC Middle East', url: rss('https://feeds.bbci.co.uk/news/world/middle_east/rss.xml') },
-    { name: 'Al Jazeera', url: rss('https://www.aljazeera.com/xml/rss/all.xml') },
-    // AlArabiya blocks cloud IPs (Cloudflare), use Google News fallback
-    { name: 'Al Arabiya', url: rss('https://news.google.com/rss/search?q=site:english.alarabiya.net+when:2d&hl=en-US&gl=US&ceid=US:en') },
-    // Arab News and Times of Israel removed — 403 from cloud IPs
-    { name: 'Guardian ME', url: rss('https://www.theguardian.com/world/middleeast/rss') },
-    { name: 'CNN World', url: rss('http://rss.cnn.com/rss/cnn_world.rss') },
-  ],
-  tech: [
-    { name: 'Hacker News', url: rss('https://hnrss.org/frontpage') },
-    { name: 'Ars Technica', url: rss('https://feeds.arstechnica.com/arstechnica/technology-lab') },
-    { name: 'The Verge', url: rss('https://www.theverge.com/rss/index.xml') },
-    { name: 'MIT Tech Review', url: rss('https://www.technologyreview.com/feed/') },
-  ],
-  ai: [
-    { name: 'AI News', url: rss('https://news.google.com/rss/search?q=(OpenAI+OR+Anthropic+OR+Google+AI+OR+"large+language+model"+OR+ChatGPT)+when:2d&hl=en-US&gl=US&ceid=US:en') },
-    { name: 'VentureBeat AI', url: rss('https://venturebeat.com/category/ai/feed/') },
-    { name: 'The Verge AI', url: rss('https://www.theverge.com/rss/ai-artificial-intelligence/index.xml') },
-    { name: 'MIT Tech Review', url: rss('https://www.technologyreview.com/topic/artificial-intelligence/feed') },
-    { name: 'ArXiv AI', url: rss('https://export.arxiv.org/rss/cs.AI') },
-  ],
-  finance: [
-    { name: 'CNBC', url: rss('https://www.cnbc.com/id/100003114/device/rss/rss.html') },
-    { name: 'MarketWatch', url: rss('https://feeds.marketwatch.com/marketwatch/topstories') },
-    { name: 'Yahoo Finance', url: rss('https://finance.yahoo.com/news/rssindex') },
-    { name: 'Financial Times', url: rss('https://www.ft.com/rss/home') },
-    { name: 'Reuters Business', url: rss('https://news.google.com/rss/search?q=site:reuters.com+business+markets&hl=en-US&gl=US&ceid=US:en') },
-  ],
-  gov: [
-    { name: 'White House', url: rss('https://news.google.com/rss/search?q=site:whitehouse.gov&hl=en-US&gl=US&ceid=US:en') },
-    { name: 'State Dept', url: rss('https://news.google.com/rss/search?q=site:state.gov+OR+"State+Department"&hl=en-US&gl=US&ceid=US:en') },
-    { name: 'Pentagon', url: rss('https://news.google.com/rss/search?q=site:defense.gov+OR+Pentagon&hl=en-US&gl=US&ceid=US:en') },
-    { name: 'Treasury', url: rss('https://news.google.com/rss/search?q=site:treasury.gov+OR+"Treasury+Department"&hl=en-US&gl=US&ceid=US:en') },
-    { name: 'DOJ', url: rss('https://news.google.com/rss/search?q=site:justice.gov+OR+"Justice+Department"+DOJ&hl=en-US&gl=US&ceid=US:en') },
-    { name: 'Federal Reserve', url: rss('https://www.federalreserve.gov/feeds/press_all.xml') },
-    { name: 'SEC', url: rss('https://www.sec.gov/news/pressreleases.rss') },
-    { name: 'CDC', url: rss('https://news.google.com/rss/search?q=site:cdc.gov+OR+CDC+health&hl=en-US&gl=US&ceid=US:en') },
-    { name: 'FEMA', url: rss('https://news.google.com/rss/search?q=site:fema.gov+OR+FEMA+emergency&hl=en-US&gl=US&ceid=US:en') },
-    { name: 'DHS', url: rss('https://news.google.com/rss/search?q=site:dhs.gov+OR+"Homeland+Security"&hl=en-US&gl=US&ceid=US:en') },
-    { name: 'UN News', url: railwayRss('https://news.un.org/feed/subscribe/en/news/all/rss.xml') },
-    { name: 'CISA', url: railwayRss('https://www.cisa.gov/cybersecurity-advisories/all.xml') },
-  ],
-  layoffs: [
-    { name: 'Layoffs.fyi', url: rss('https://layoffs.fyi/feed/') },
-    { name: 'TechCrunch Layoffs', url: rss('https://techcrunch.com/tag/layoffs/feed/') },
-    { name: 'Layoffs News', url: rss('https://news.google.com/rss/search?q=(layoffs+OR+"job+cuts"+OR+"workforce+reduction")+when:3d&hl=en-US&gl=US&ceid=US:en') },
-  ],
-  thinktanks: [
-    { name: 'Foreign Policy', url: rss('https://foreignpolicy.com/feed/') },
-    { name: 'Atlantic Council', url: railwayRss('https://www.atlanticcouncil.org/feed/') },
-    { name: 'Foreign Affairs', url: rss('https://www.foreignaffairs.com/rss.xml') },
-    { name: 'CSIS', url: rss('https://news.google.com/rss/search?q=site:csis.org+when:7d&hl=en-US&gl=US&ceid=US:en') },
-    { name: 'RAND', url: rss('https://news.google.com/rss/search?q=site:rand.org+when:7d&hl=en-US&gl=US&ceid=US:en') },
-    { name: 'Brookings', url: rss('https://news.google.com/rss/search?q=site:brookings.edu+when:7d&hl=en-US&gl=US&ceid=US:en') },
-    { name: 'Carnegie', url: rss('https://news.google.com/rss/search?q=site:carnegieendowment.org+when:7d&hl=en-US&gl=US&ceid=US:en') },
-    // New verified think tank feeds
-    // War on the Rocks - Defense and national security analysis
-    { name: 'War on the Rocks', url: rss('https://warontherocks.com/feed') },
-    // AEI - American Enterprise Institute (US conservative think tank)
-    { name: 'AEI', url: rss('https://www.aei.org/feed/') },
-    // Responsible Statecraft - Foreign policy analysis (Quincy Institute)
-    { name: 'Responsible Statecraft', url: rss('https://responsiblestatecraft.org/feed/') },
-    // RUSI - Royal United Services Institute (UK defense & security)
-    { name: 'RUSI', url: rss('https://www.rusi.org/rss/latest-commentary.xml') },
-    // FPRI - Foreign Policy Research Institute (US foreign policy)
-    { name: 'FPRI', url: rss('https://www.fpri.org/feed/') },
-    // Jamestown Foundation - Eurasia/China/Terrorism analysis
-    { name: 'Jamestown', url: rss('https://jamestown.org/feed/') },
-  ],
-  crisis: [
-    { name: 'CrisisWatch', url: rss('https://www.crisisgroup.org/rss') },
-    { name: 'IAEA', url: rss('https://www.iaea.org/feeds/topnews') },
-    { name: 'WHO', url: rss('https://www.who.int/rss-feeds/news-english.xml') },
-    { name: 'UNHCR', url: rss('https://news.google.com/rss/search?q=site:unhcr.org+OR+UNHCR+refugees+when:3d&hl=en-US&gl=US&ceid=US:en') },
-  ],
-  regional: [
-    { name: 'Xinhua', url: rss('https://news.google.com/rss/search?q=site:xinhuanet.com+OR+Xinhua+when:1d&hl=en-US&gl=US&ceid=US:en') },
-    { name: 'TASS', url: rss('https://news.google.com/rss/search?q=site:tass.com+OR+TASS+Russia+when:1d&hl=en-US&gl=US&ceid=US:en') },
-    { name: 'Kyiv Independent', url: rss('https://kyivindependent.com/feed/') },
-    { name: 'Moscow Times', url: rss('https://www.themoscowtimes.com/rss/news') },
+    { name: 'Arabian Travel Market', url: rss('https://news.google.com/rss/search?q="Arabian+Travel+Market"+OR+"Middle+East+Tourism"+when:7d&hl=en-US&gl=US&ceid=US:en') },
+    { name: 'Gulf Business Tourism', url: rss('https://news.google.com/rss/search?q=site:gulfbusiness.com+tourism+when:7d&hl=en-US&gl=US&ceid=US:en') },
+    { name: 'Hotelier Middle East', url: rss('https://www.hoteliermiddleeast.com/feed') },
+    { name: 'Visit Dubai', url: rss('https://news.google.com/rss/search?q="Visit+Dubai"+OR+"Dubai+Tourism"+when:7d&hl=en-US&gl=US&ceid=US:en') },
+    { name: 'Saudi Tourism', url: rss('https://news.google.com/rss/search?q="Saudi+Tourism+Authority"+OR+"Visit+Saudi"+when:7d&hl=en-US&gl=US&ceid=US:en') },
   ],
   africa: [
-    { name: 'Africa News', url: rss('https://news.google.com/rss/search?q=(Africa+OR+Nigeria+OR+Kenya+OR+"South+Africa"+OR+Ethiopia)+when:2d&hl=en-US&gl=US&ceid=US:en') },
-    { name: 'Sahel Crisis', url: rss('https://news.google.com/rss/search?q=(Sahel+OR+Mali+OR+Niger+OR+"Burkina+Faso"+OR+Wagner)+when:3d&hl=en-US&gl=US&ceid=US:en') },
-    { name: 'News24', url: railwayRss('https://feeds.capi24.com/v1/Search/articles/news24/Africa/rss') },
-    { name: 'BBC Africa', url: rss('https://feeds.bbci.co.uk/news/world/africa/rss.xml') },
+    { name: 'Tourism Update Africa', url: rss('https://www.tourismupdate.co.za/rss') },
+    { name: 'Africa Travel Week', url: rss('https://news.google.com/rss/search?q="Africa+Travel+Week"+OR+"WTM+Africa"+when:14d&hl=en-US&gl=US&ceid=US:en') },
+    { name: 'Safari News', url: rss('https://news.google.com/rss/search?q="safari+tourism"+OR+"African+parks"+tourism+when:7d&hl=en-US&gl=US&ceid=US:en') },
   ],
   latam: [
-    { name: 'Latin America', url: rss('https://news.google.com/rss/search?q=(Brazil+OR+Mexico+OR+Argentina+OR+Venezuela+OR+Colombia)+when:2d&hl=en-US&gl=US&ceid=US:en') },
-    { name: 'BBC Latin America', url: rss('https://feeds.bbci.co.uk/news/world/latin_america/rss.xml') },
-    { name: 'Reuters LatAm', url: rss('https://news.google.com/rss/search?q=site:reuters.com+(Brazil+OR+Mexico+OR+Argentina)+when:3d&hl=en-US&gl=US&ceid=US:en') },
-    { name: 'Guardian Americas', url: rss('https://www.theguardian.com/world/americas/rss') },
+    { name: 'Caribbean News Digital', url: rss('https://www.caribbeannewsdigital.com/en/rss') },
+    { name: 'LATA News', url: rss('https://news.google.com/rss/search?q="Latin+American+Travel+Association"+OR+"LATA"+when:14d&hl=en-US&gl=US&ceid=US:en') },
+    { name: 'Mexico Tourism', url: rss('https://news.google.com/rss/search?q="Mexico+Tourism"+OR+"Visit+Mexico"+when:7d&hl=en-US&gl=US&ceid=US:en') },
   ],
   asia: [
-    { name: 'Asia News', url: rss('https://news.google.com/rss/search?q=(China+OR+Japan+OR+Korea+OR+India+OR+ASEAN)+when:2d&hl=en-US&gl=US&ceid=US:en') },
-    { name: 'BBC Asia', url: rss('https://feeds.bbci.co.uk/news/world/asia/rss.xml') },
-    { name: 'South China Morning Post', url: railwayRss('https://www.scmp.com/rss/91/feed/') },
-    { name: 'Reuters Asia', url: rss('https://news.google.com/rss/search?q=site:reuters.com+(China+OR+Japan+OR+Taiwan+OR+Korea)+when:3d&hl=en-US&gl=US&ceid=US:en') },
+    { name: 'TTR Weekly', url: rss('https://www.ttrweekly.com/site/feed/') },
+    { name: 'Travel Daily China', url: rss('https://news.google.com/rss/search?q="Travel+Daily+China"+OR+"Ctrip"+OR+"Trip.com"+news+when:7d&hl=en-US&gl=US&ceid=US:en') },
+    { name: 'TTG Asia', url: rss('https://www.ttgasia.com/feed/') },
+    { name: 'Tourism Australia', url: rss('https://news.google.com/rss/search?q="Tourism+Australia"+OR+"Visit+Australia"+when:7d&hl=en-US&gl=US&ceid=US:en') },
+  ],
+  tech: [
+    { name: 'Skift Tech', url: rss('https://skift.com/technology/feed/') },
+    { name: 'Phocuswright Innovation', url: rss('https://news.google.com/rss/search?q=site:phocuswright.com+innovation+OR+tech+when:14d&hl=en-US&gl=US&ceid=US:en') },
+    { name: 'Travel Tech', url: rss('https://news.google.com/rss/search?q="travel+technology"+OR+"travel+startup"+OR+"hotel+tech"+when:7d&hl=en-US&gl=US&ceid=US:en') },
+    { name: 'Hospitality Net Tech', url: rss('https://www.hospitalitynet.org/rss/news/technology.xml') },
+  ],
+  finance: [
+    { name: 'CNBC Travel', url: rss('https://www.cnbc.com/id/10000739/device/rss/rss.html') },
+    { name: 'Bloomberg Travel', url: rss('https://news.google.com/rss/search?q=site:bloomberg.com+travel+OR+airline+OR+hotel+stocks+when:7d&hl=en-US&gl=US&ceid=US:en') },
+    { name: 'Yahoo Finance Travel', url: rss('https://news.google.com/rss/search?q=site:finance.yahoo.com+"travel+stocks"+OR+airlines+OR+hotels+when:7d&hl=en-US&gl=US&ceid=US:en') },
+    { name: 'Skift Business', url: rss('https://skift.com/corporate-travel/feed/') },
   ],
   energy: [
-    { name: 'Oil & Gas', url: rss('https://news.google.com/rss/search?q=(oil+price+OR+OPEC+OR+"natural+gas"+OR+pipeline+OR+LNG)+when:2d&hl=en-US&gl=US&ceid=US:en') },
-    { name: 'Nuclear Energy', url: rss('https://news.google.com/rss/search?q=("nuclear+energy"+OR+"nuclear+power"+OR+uranium+OR+IAEA)+when:3d&hl=en-US&gl=US&ceid=US:en') },
-    { name: 'Reuters Energy', url: rss('https://news.google.com/rss/search?q=site:reuters.com+(oil+OR+gas+OR+energy+OR+OPEC)+when:3d&hl=en-US&gl=US&ceid=US:en') },
-    { name: 'Mining & Resources', url: rss('https://news.google.com/rss/search?q=(lithium+OR+"rare+earth"+OR+cobalt+OR+mining)+when:3d&hl=en-US&gl=US&ceid=US:en') },
+    { name: 'Jet Fuel Prices', url: rss('https://news.google.com/rss/search?q="jet+fuel+price"+OR+"saf+fuel"+OR+"sustainable+aviation+fuel"+when:7d&hl=en-US&gl=US&ceid=US:en') },
+    { name: 'Oil & Gas', url: rss('https://news.google.com/rss/search?q=(oil+price+OR+OPEC)+when:2d&hl=en-US&gl=US&ceid=US:en') },
+  ],
+  gov: [
+    { name: 'State Dept Travel', url: rss('https://news.google.com/rss/search?q=site:travel.state.gov+when:7d&hl=en-US&gl=US&ceid=US:en') },
+    { name: 'CDC Travel', url: rss('https://tools.cdc.gov/api/v2/resources/media/132608.rss') },
+    { name: 'FAA News', url: rss('https://www.faa.gov/news/rss/news_updates.xml') },
+    { name: 'TSA Media', url: rss('https://www.tsa.gov/news/releases/rss') },
+  ],
+  social: [
+    { name: 'Social Media Trends', url: rss('https://news.google.com/rss/search?q=(travel+influencer+OR+travel+TikTok+OR+travel+Instagram)+when:3d&hl=en-US&gl=US&ceid=US:en') },
+    { name: 'Creator Economy', url: rss('https://news.google.com/rss/search?q=("creator+economy"+OR+"influencer+marketing")+travel+when:7d&hl=en-US&gl=US&ceid=US:en') },
+  ],
+  campaigns: [
+    { name: 'Brand Campaigns', url: rss('https://news.google.com/rss/search?q=(airline+OR+hotel+OR+"tourism+board")+campaign+OR+advertising+when:7d&hl=en-US&gl=US&ceid=US:en') },
+    { name: 'Marketing News', url: rss('https://www.adweek.com/category/travel/feed/') },
+  ],
+  loyalty: [
+    { name: 'Loyalty Programs', url: rss('https://news.google.com/rss/search?q=(airline+loyalty+OR+hotel+rewards+OR+"frequent+flyer")+when:7d&hl=en-US&gl=US&ceid=US:en') },
+    { name: 'The Points Guy', url: rss('https://thepointsguy.com/feed/') },
+    { name: 'Frequent Miler', url: rss('https://frequentmiler.com/feed/') },
+  ],
+  research: [
+    { name: 'Skift Research', url: rss('https://research.skift.com/feed/') },
+    { name: 'Phocuswright', url: rss('https://news.google.com/rss/search?q=site:phocuswright.com+when:30d&hl=en-US&gl=US&ceid=US:en') },
+    { name: 'IATA Economics', url: rss('https://www.iata.org/en/iata-repository/publications/economic-reports/rss/') },
   ],
 };
 

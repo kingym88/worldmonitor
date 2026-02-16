@@ -12,7 +12,7 @@ import { fetchHotspotContext, formatArticleDate, extractDomain, type GdeltArticl
 import { getNaturalEventIcon } from '@/services/eonet';
 import { getHotspotEscalation, getEscalationChange24h } from '@/services/hotspot-escalation';
 
-export type PopupType = 'conflict' | 'hotspot' | 'earthquake' | 'weather' | 'base' | 'infrastructure' | 'waterway' | 'apt' | 'cyberThreat' | 'nuclear' | 'economic' | 'irradiator' | 'pipeline' | 'cable' | 'cable-advisory' | 'repair-ship' | 'outage' | 'datacenter' | 'datacenterCluster' | 'ais' | 'event' | 'protestCluster' | 'flight' | 'militaryFlight' | 'militaryVessel' | 'militaryFlightCluster' | 'militaryVesselCluster' | 'natEvent' | 'port' | 'spaceport' | 'mineral' | 'startupHub' | 'cloudRegion' | 'techHQ' | 'accelerator' | 'techEvent' | 'techHQCluster' | 'techEventCluster' | 'techActivity' | 'geoActivity';
+export type PopupType = 'conflict' | 'hotspot' | 'earthquake' | 'weather' | 'base' | 'infrastructure' | 'waterway' | 'apt' | 'cyberThreat' | 'nuclear' | 'economic' | 'irradiator' | 'pipeline' | 'cable' | 'cable-advisory' | 'repair-ship' | 'outage' | 'datacenter' | 'datacenterCluster' | 'ais' | 'event' | 'eventCluster' | 'protest' | 'protestCluster' | 'flight' | 'militaryFlight' | 'militaryVessel' | 'militaryFlightCluster' | 'militaryVesselCluster' | 'natEvent' | 'port' | 'spaceport' | 'mineral' | 'startupHub' | 'cloudRegion' | 'techHQ' | 'accelerator' | 'techEvent' | 'techHQCluster' | 'techEventCluster' | 'techActivity' | 'geoActivity';
 
 interface TechEventPopupData {
   id: string;
@@ -237,6 +237,8 @@ export class MapPopup {
         return this.renderAisPopup(data.data as AisDisruptionEvent);
       case 'event':
         return this.renderEventPopup(data.data as TravelEvent);
+      case 'protest':
+        return this.renderProtestPopup(data.data as SocialUnrestEvent);
       case 'protestCluster':
         return this.renderProtestClusterPopup(data.data as ProtestClusterData);
       case 'flight':
@@ -780,6 +782,45 @@ export class MapPopup {
             <span class="stat-value">${event.attendees.toLocaleString()}</span>
           </div>` : ''}
         </div>
+      </div>
+    `;
+  }
+
+  private renderProtestPopup(event: SocialUnrestEvent): string {
+    const severityClass = event.severity === 'high' ? 'high' : event.severity === 'medium' ? 'medium' : 'low';
+    const severityLabel = escapeHtml(event.severity.toUpperCase());
+    
+    return `
+      <div class="popup-header protest ${severityClass}">
+        <span class="popup-title">${escapeHtml(event.eventType.toUpperCase().replace('_', ' '))}</span>
+        <span class="popup-badge ${severityClass}">${severityLabel}</span>
+        <button class="popup-close">×</button>
+      </div>
+      <div class="popup-body">
+        <div class="popup-stats">
+          <div class="popup-stat">
+            <span class="stat-label">LOCATION</span>
+            <span class="stat-value">${escapeHtml(event.city || '')}, ${escapeHtml(event.country)}</span>
+          </div>
+          <div class="popup-stat">
+            <span class="stat-label">DATE</span>
+            <span class="stat-value">${event.time.toLocaleDateString()}</span>
+          </div>
+          ${event.fatalities ? `
+          <div class="popup-stat">
+            <span class="stat-label">FATALITIES</span>
+            <span class="stat-value">${event.fatalities}</span>
+          </div>` : ''}
+        </div>
+        ${event.summary ? `<p class="popup-description">${escapeHtml(event.summary)}</p>` : ''}
+        ${event.actors && event.actors.length > 0 ? `
+          <div class="popup-section">
+            <span class="section-label">ACTORS</span>
+            <div class="popup-tags">
+              ${event.actors.map(a => `<span class="popup-tag">${escapeHtml(a)}</span>`).join('')}
+            </div>
+          </div>
+        ` : ''}
       </div>
     `;
   }

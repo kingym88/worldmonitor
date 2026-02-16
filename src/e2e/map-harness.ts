@@ -129,7 +129,7 @@ app.style.position = 'relative';
 app.style.margin = '0 auto';
 
 const allLayersEnabled: MapLayers = {
-  conflicts: true,
+  safety: true,
   bases: true,
   cables: true,
   pipelines: true,
@@ -144,7 +144,7 @@ const allLayersEnabled: MapLayers = {
   outages: true,
   cyberThreats: true,
   datacenters: true,
-  protests: true,
+  events: true,
   flights: true,
   military: true,
   natural: true,
@@ -162,7 +162,7 @@ const allLayersEnabled: MapLayers = {
 };
 
 const allLayersDisabled: MapLayers = {
-  conflicts: false,
+  safety: false,
   bases: false,
   cables: false,
   pipelines: false,
@@ -177,7 +177,7 @@ const allLayersDisabled: MapLayers = {
   outages: false,
   cyberThreats: false,
   datacenters: false,
-  protests: false,
+  events: false,
   flights: false,
   military: false,
   natural: false,
@@ -357,7 +357,7 @@ const VISUAL_SCENARIOS: VisualScenario[] = [
   {
     id: 'conflicts-z4',
     variant: 'both',
-    enabledLayers: ['conflicts'],
+    enabledLayers: ['safety'],
     camera: toCamera(conflictLon, conflictLat, 4.0),
     expectedDeckLayers: ['conflict-zones-layer'],
     expectedSelectors: [],
@@ -485,7 +485,7 @@ const VISUAL_SCENARIOS: VisualScenario[] = [
   {
     id: 'protests-z5',
     variant: 'both',
-    enabledLayers: ['protests'],
+    enabledLayers: ['events'],
     camera: seededCameras.protests,
     expectedDeckLayers: [],
     expectedSelectors: ['.protest-marker'],

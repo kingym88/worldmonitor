@@ -2,7 +2,7 @@ import type { MapLayers } from '@/types';
 import type { MapView, TimeRange } from '@/components/Map';
 
 const LAYER_KEYS: (keyof MapLayers)[] = [
-  'conflicts',
+  'safety',
   'bases',
   'cables',
   'pipelines',
@@ -17,7 +17,7 @@ const LAYER_KEYS: (keyof MapLayers)[] = [
   'outages',
   'cyberThreats',
   'datacenters',
-  'protests',
+  'events',
   'flights',
   'military',
   'natural',

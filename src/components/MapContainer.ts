@@ -17,7 +17,6 @@ import type {
   AisDensityZone,
   CableAdvisory,
   RepairShip,
-  SocialUnrestEvent,
   AirportDelayAlert,
   MilitaryFlight,
   MilitaryVessel,
@@ -270,6 +269,14 @@ export class MapContainer {
   public setUcdpEvents(events: UcdpGeoEvent[]): void {
     if (this.useDeckGL) {
       this.deckGLMap?.setUcdpEvents(events);
+    }
+  }
+
+  public setSafetyData(data: Record<string, { score: number; level: string; message: string }>): void {
+    if (this.useDeckGL) {
+      this.deckGLMap?.setSafetyData(data);
+    } else {
+      this.svgMap?.setSafetyData(data);
     }
   }
 
