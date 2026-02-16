@@ -17,17 +17,17 @@ export class StrategicPosturePanel extends Panel {
   constructor() {
     super({
       id: 'strategic-posture',
-      title: 'AI Strategic Posture',
+      title: 'REGIONAL TRAVEL SENTIMENT',
       showCount: false,
       trackActivity: true,
       infoTooltip: `<strong>Methodology</strong>
-        <p>Aggregates military aircraft and naval vessels by theater.</p>
+        <p>Tracks regional travel stability sentiment and risk based on conflict signals.</p>
         <ul>
-          <li><strong>Normal:</strong> Baseline activity</li>
-          <li><strong>Elevated:</strong> Above threshold (50+ aircraft)</li>
-          <li><strong>Critical:</strong> High concentration (100+ aircraft)</li>
+          <li><strong>Normal:</strong> High travel confidence</li>
+          <li><strong>Elevated:</strong> Caution advised (reduced sentiment)</li>
+          <li><strong>Critical:</strong> Negative Sentiment / Risk Warning</li>
         </ul>
-        <p><strong>Strike Capable:</strong> Tankers + AWACS + Fighters present in sufficient numbers for sustained operations.</p>`,
+        <p><strong>High Tension:</strong> Significant activity impacting travel desirability.</p>`,
     });
     this.init();
   }
@@ -435,7 +435,7 @@ export class StrategicPosturePanel extends Panel {
         </div>
 
         <div class="posture-footer">
-          ${p.strikeCapable ? '<span class="posture-strike">⚡ STRIKE</span>' : ''}
+          ${p.strikeCapable ? '<span class="posture-strike">⚡ HIGH TENSION</span>' : ''}
           ${this.getTrendIcon(p.trend, p.changePercent)}
           ${p.targetNation ? `<span class="posture-focus">→ ${escapeHtml(p.targetNation)}</span>` : ''}
         </div>

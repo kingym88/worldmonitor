@@ -19,7 +19,7 @@ function miniSparkline(data: number[] | undefined, change: number | null, w = 50
 
 export class MarketPanel extends Panel {
   constructor() {
-    super({ id: 'markets', title: 'Markets' });
+    super({ id: 'markets', title: 'TRAVEL & HOSPITALITY STOCKS' });
   }
 
   public renderMarkets(data: MarketData[]): void {
@@ -52,7 +52,7 @@ export class MarketPanel extends Panel {
 
 export class HeatmapPanel extends Panel {
   constructor() {
-    super({ id: 'heatmap', title: 'Sector Heatmap' });
+    super({ id: 'heatmap', title: 'TRAVEL SECTOR HEATMAP' });
   }
 
   public renderHeatmap(data: Array<{ name: string; change: number | null }>): void {
@@ -83,7 +83,7 @@ export class HeatmapPanel extends Panel {
 
 export class CommoditiesPanel extends Panel {
   constructor() {
-    super({ id: 'commodities', title: 'Commodities / VIX' });
+    super({ id: 'commodities', title: 'FUEL & CURRENCY' });
   }
 
   public renderCommodities(data: Array<{ display: string; price: number | null; change: number | null; sparkline?: number[] }>): void {
@@ -116,7 +116,7 @@ export class CommoditiesPanel extends Panel {
 
 export class CryptoPanel extends Panel {
   constructor() {
-    super({ id: 'crypto', title: 'Crypto' });
+    super({ id: 'crypto', title: 'TRAVEL PAYMENT TRENDS' });
   }
 
   public renderCrypto(data: CryptoData[]): void {

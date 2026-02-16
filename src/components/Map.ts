@@ -14,6 +14,8 @@ import {
   INTEL_HOTSPOTS,
   CONFLICT_ZONES,
   MILITARY_BASES,
+  TRAVEL_INFRASTRUCTURE,
+  TRAVEL_EVENTS,
   UNDERSEA_CABLES,
   NUCLEAR_FACILITIES,
   GAMMA_IRRADIATORS,
@@ -33,6 +35,7 @@ import {
   ACCELERATORS,
   TECH_HQS,
   CLOUD_REGIONS,
+  TravelEvent,
 } from '@/config';
 import { MapPopup } from './MapPopup';
 import {
@@ -85,7 +88,7 @@ export class MapComponent {
   > = {
     bases: { minZoom: 3, showLabels: 5 },
     nuclear: { minZoom: 2 },
-    conflicts: { minZoom: 1, showLabels: 3 },
+    safety: { minZoom: 1, showLabels: 3 },
     economic: { minZoom: 2 },
     natural: { minZoom: 1, showLabels: 2 },
   };
@@ -112,7 +115,8 @@ export class MapComponent {
   private aisDensity: AisDensityZone[] = [];
   private cableAdvisories: CableAdvisory[] = [];
   private repairShips: RepairShip[] = [];
-  private protests: SocialUnrestEvent[] = [];
+  // Travel Refactor
+  private events: TravelEvent[] = []; // Was protests
   private flightDelays: AirportDelayAlert[] = [];
   private militaryFlights: MilitaryFlight[] = [];
   private militaryFlightClusters: MilitaryFlightCluster[] = [];
@@ -132,6 +136,7 @@ export class MapComponent {
   private onLayerChange?: (layer: keyof MapLayers, enabled: boolean) => void;
   private layerZoomOverrides: Partial<Record<keyof MapLayers, boolean>> = {};
   private onStateChange?: (state: MapState) => void;
+  private safetyData: Record<string, { score: number; level: string; message: string }> | null = null;
   private highlightedAssets: Record<AssetType, Set<string>> = {
     pipeline: new Set(),
     cable: new Set(),
@@ -299,6 +304,10 @@ export class MapComponent {
     this.render();
   }
 
+  public getEvents(): TravelEvent[] {
+    return this.events;
+  }
+
   private getTimeRangeMs(): number {
     const ranges: Record<TimeRange, number> = {
       '1h': 60 * 60 * 1000,
@@ -328,7 +337,7 @@ export class MapComponent {
 
     // Variant-aware layer buttons
     const fullLayers: (keyof MapLayers)[] = [
-      'conflicts', 'hotspots', 'sanctions', 'protests',  // geopolitical
+      'safety', 'hotspots', 'sanctions', 'events',  // geopolitical/safety
       'bases', 'nuclear', 'irradiators',                 // military/strategic
       'military',                                         // military tracking (flights + vessels)
       'cables', 'pipelines', 'outages', 'datacenters',   // infrastructure
@@ -346,9 +355,16 @@ export class MapComponent {
     ];
     const layers = SITE_VARIANT === 'tech' ? techLayers : fullLayers;
     const layerLabels: Partial<Record<keyof MapLayers, string>> = {
-      ais: 'Shipping',
-      flights: 'Delays',
-      military: 'Military',
+      ais: 'Cruise Ships',
+      flights: 'Comm. Flights',
+      military: 'Mil. Tracking',
+      events: 'Dest. Events',
+      bases: 'Travel Infra',
+      outages: 'Disruptions',
+      natural: 'Natural Hazards',
+      safety: 'Dest. Safety',
+      fires: 'Air Quality',
+      weather: 'Seasonal Wx',
     };
 
     layers.forEach((layer) => {
@@ -420,44 +436,33 @@ export class MapComponent {
           <div class="layer-help-title">Time Filter (top-right)</div>
           <div class="layer-help-item"><span>1H/6H/24H</span> Filter time-based data to recent hours</div>
           <div class="layer-help-item"><span>7D/30D/ALL</span> Show data from past week, month, or all time</div>
-          <div class="layer-help-note">Affects: Earthquakes, Weather, Protests, Outages</div>
+          <div class="layer-help-note">Affects: Earthquakes, Weather, Events, Outages</div>
         </div>
         <div class="layer-help-section">
-          <div class="layer-help-title">Geopolitical</div>
-          <div class="layer-help-item"><span>CONFLICTS</span> Active war zones (Ukraine, Gaza, etc.) with boundaries</div>
-          <div class="layer-help-item"><span>HOTSPOTS</span> Tension regions - color-coded by news activity level</div>
-          <div class="layer-help-item"><span>SANCTIONS</span> Countries under US/EU/UN economic sanctions</div>
-          <div class="layer-help-item"><span>PROTESTS</span> Civil unrest, demonstrations (time-filtered)</div>
+          <div class="layer-help-title">Destination Safety</div>
+          <div class="layer-help-item"><span>DEST. SAFETY</span> Travel advisories (Level 1-4) & conflict zones</div>
+          <div class="layer-help-item"><span>HOTSPOTS</span> Trending travel destinations & regions of interest</div>
+          <div class="layer-help-item"><span>SANCTIONS</span> Visa restrictions & entry requirements</div>
+          <div class="layer-help-item"><span>DEST. EVENTS</span> Major festivals, conferences, and cultural events</div>
         </div>
         <div class="layer-help-section">
-          <div class="layer-help-title">Military & Strategic</div>
-          <div class="layer-help-item"><span>BASES</span> US/NATO, China, Russia military installations (150+)</div>
-          <div class="layer-help-item"><span>NUCLEAR</span> Power plants, enrichment, weapons facilities</div>
-          <div class="layer-help-item"><span>IRRADIATORS</span> Industrial gamma irradiator facilities</div>
-          <div class="layer-help-item"><span>MILITARY</span> Live military aircraft and vessel tracking</div>
+          <div class="layer-help-title">Transport & Infrastructure</div>
+          <div class="layer-help-item"><span>COMM. FLIGHTS</span> Live commercial flight tracking & delays</div>
+          <div class="layer-help-item"><span>CRUISE SHIPS</span> Live cruise ship & vessel tracking</div>
+          <div class="layer-help-item"><span>TRAVEL INFRA</span> Major transport hubs & critical infrastructure</div>
+          <div class="layer-help-item"><span>DISRUPTIONS</span> Internet blackouts & service interruptions</div>
+          <div class="layer-help-item"><span>CONNECTIVITY</span> Undersea cables & digital connectivity routes</div>
         </div>
         <div class="layer-help-section">
-          <div class="layer-help-title">Infrastructure</div>
-          <div class="layer-help-item"><span>CABLES</span> Major undersea fiber optic cables (20 backbone routes)</div>
-          <div class="layer-help-item"><span>PIPELINES</span> Oil/gas pipelines (Nord Stream, TAPI, etc.)</div>
-          <div class="layer-help-item"><span>OUTAGES</span> Internet blackouts and disruptions</div>
-          <div class="layer-help-item"><span>DATACENTERS</span> AI compute clusters ≥10,000 GPUs only</div>
+          <div class="layer-help-title">Environmental Hazards</div>
+          <div class="layer-help-item"><span>NATURAL HAZARDS</span> Earthquakes, storms, floods (affects travel plans)</div>
+          <div class="layer-help-item"><span>SEASONAL WX</span> Severe weather alerts & seasonal patterns</div>
+          <div class="layer-help-item"><span>AIR QUALITY</span> Fire smoke & pollution indicators</div>
         </div>
         <div class="layer-help-section">
-          <div class="layer-help-title">Transport</div>
-          <div class="layer-help-item"><span>SHIPPING</span> Vessels, chokepoints, 61 strategic ports</div>
-          <div class="layer-help-item"><span>DELAYS</span> Airport delays and ground stops (FAA)</div>
-        </div>
-        <div class="layer-help-section">
-          <div class="layer-help-title">Natural & Economic</div>
-          <div class="layer-help-item"><span>NATURAL</span> Earthquakes (USGS) + storms, fires, volcanoes, floods (NASA EONET)</div>
-          <div class="layer-help-item"><span>WEATHER</span> Severe weather alerts</div>
-          <div class="layer-help-item"><span>ECONOMIC</span> Stock exchanges & central banks</div>
-        </div>
-        <div class="layer-help-section">
-          <div class="layer-help-title">Labels</div>
-          <div class="layer-help-item"><span>COUNTRIES</span> Country name overlays</div>
-          <div class="layer-help-item"><span>WATERWAYS</span> Strategic chokepoint labels</div>
+          <div class="layer-help-title">Military Tracking</div>
+          <div class="layer-help-item"><span>MIL. TRACKING</span> Active military zones (avoidance areas)</div>
+          <div class="layer-help-item"><span>NUCLEAR</span> Nuclear facilities (restricted airspace)</div>
         </div>
       </div>
     `;
@@ -509,14 +514,14 @@ export class MapComponent {
         <div class="map-legend-item"><span class="map-legend-icon" style="color:#4ecdc4">💾</span>DATACENTER</div>
       `;
     } else {
-      // Geopolitical variant legend
+      // Travel Monitor variant legend
       legend.innerHTML = `
-        <div class="map-legend-item"><span class="legend-dot high"></span>HIGH ALERT</div>
-        <div class="map-legend-item"><span class="legend-dot elevated"></span>ELEVATED</div>
-        <div class="map-legend-item"><span class="legend-dot low"></span>MONITORING</div>
-        <div class="map-legend-item"><span class="map-legend-icon conflict">⚔</span>CONFLICT</div>
-        <div class="map-legend-item"><span class="map-legend-icon earthquake">●</span>EARTHQUAKE</div>
-        <div class="map-legend-item"><span class="map-legend-icon apt">⚠</span>APT</div>
+        <div class="map-legend-item"><span class="legend-dot" style="background:#ef4444"></span>EXTREME RISK</div>
+        <div class="map-legend-item"><span class="legend-dot" style="background:#f97316"></span>HIGH RISK</div>
+        <div class="map-legend-item"><span class="legend-dot" style="background:#f59e0b"></span>MEDIUM RISK</div>
+        <div class="map-legend-item"><span class="legend-dot" style="background:#10b981"></span>LOW RISK</div>
+        <div class="map-legend-item"><span class="map-legend-icon earthquake">●</span>HAZARD</div>
+        <div class="map-legend-item"><span class="map-legend-icon">✈</span>FLIGHTS</div>
       `;
     }
     return legend;
@@ -711,6 +716,18 @@ export class MapComponent {
       this.render();
       // Re-render after layout stabilizes to catch full container width
       requestAnimationFrame(() => requestAnimationFrame(() => this.render()));
+
+      // Load travel safety data
+      try {
+        const safetyResponse = await fetch('/api/travel-safety');
+        const safetyJson = await safetyResponse.json();
+        if (safetyJson && safetyJson.data) {
+          this.safetyData = safetyJson.data;
+          this.render();
+        }
+      } catch (e) {
+        console.error('Failed to load safety data:', e);
+      }
     } catch (e) {
       console.error('Failed to load map data:', e);
     }
@@ -854,9 +871,10 @@ export class MapComponent {
       this.renderPipelines(projection);
     }
 
-    if (this.state.layers.conflicts) {
-      this.renderConflicts(projection);
-    }
+    // Safety layer is handled via updateCountryFills now
+    // if (this.state.layers.conflicts) {
+    //   this.renderConflicts(projection);
+    // }
 
     if (this.state.layers.ais) {
       this.renderAisDensity(projection);
@@ -1050,53 +1068,53 @@ export class MapComponent {
     });
   }
 
-  private renderConflicts(projection: d3.GeoProjection): void {
-    if (!this.dynamicLayerGroup) return;
-    const conflictGroup = this.dynamicLayerGroup.append('g').attr('class', 'conflicts');
+  // renderConflicts removed - logic moved to Country Fills for Safety Layer
 
-    CONFLICT_ZONES.forEach((zone) => {
-      const points = zone.coords
-        .map((c) => projection(c as [number, number]))
-        .filter((p): p is [number, number] => p !== null);
-
-      if (points.length > 0) {
-        conflictGroup
-          .append('polygon')
-          .attr('class', 'conflict-zone')
-          .attr('points', points.map((p) => p.join(',')).join(' '));
-        // Labels are now rendered as HTML overlays in renderConflictLabels()
-      }
-    });
-  }
 
 
   private updateCountryFills(): void {
     if (!this.baseLayerGroup || !this.countryFeatures) return;
 
-    const sanctionColors: Record<string, string> = {
-      severe: 'rgba(255, 0, 0, 0.35)',
-      high: 'rgba(255, 100, 0, 0.25)',
-      moderate: 'rgba(255, 200, 0, 0.2)',
+    // Travel Safety Colors (0-5 score)
+    // Low Risk (<2.5): Green, Medium (2.5-3.5): Yellow, High (3.5-4.5): Orange, Extreme (>4.5): Red
+    const safetyColors = {
+      low: '#10b981',      // emerald-500
+      medium: '#f59e0b',   // amber-500
+      high: '#f97316',     // orange-500
+      extreme: '#ef4444',  // red-500
+      unknown: '#0d3028'
     };
+    
     const defaultFill = '#0d3028';
-    const useSanctions = this.state.layers.sanctions;
+    const useSafety = this.state.layers.safety;
 
     this.baseLayerGroup.selectAll('.country').each(function (datum) {
       const el = d3.select(this);
-      const id = datum as { id?: number };
-      if (!useSanctions) {
+      const feature = datum as Feature<Geometry> & { id?: string; properties?: { name?: string, iso_a2?: string } };
+      
+      // Try to find ISO code from properties or id
+      const iso = feature.id as string || feature.properties?.iso_a2; 
+
+      if (!useSafety || !iso || !this.safetyData || !this.safetyData[iso]) {
         el.attr('fill', defaultFill);
         return;
       }
-      if (id?.id !== undefined && SANCTIONED_COUNTRIES[id.id]) {
-        const level = SANCTIONED_COUNTRIES[id.id];
-        if (level) {
-          el.attr('fill', sanctionColors[level] || defaultFill);
-          return;
-        }
-      }
-      el.attr('fill', defaultFill);
-    });
+
+      const safety = this.safetyData[iso];
+      let color = safetyColors.low;
+      if (safety.score >= 4.5) color = safetyColors.extreme;
+      else if (safety.score >= 3.5) color = safetyColors.high;
+      else if (safety.score >= 2.5) color = safetyColors.medium;
+
+      el.attr('fill', color)
+        .attr('fill-opacity', 0.6)
+        .attr('stroke', '#1a8060');
+
+      // Update tooltip title if hovered (simplified logic for D3)
+      el.select('title').remove();
+      el.append('title').text(`${safety.name}: ${safety.level} (${safety.score.toFixed(1)})`);
+
+    }.bind(this));
   }
 
   // Generic marker clustering - groups markers within pixelRadius into clusters
@@ -1184,25 +1202,31 @@ export class MapComponent {
       this.renderAPTMarkers(projection);
     }
 
-    // Nuclear facilities (always HTML - shapes convey status)
+    // Major Transport Hubs (Trains)
+    // Replaces Nuclear Facilities
     if (this.state.layers.nuclear) {
-      NUCLEAR_FACILITIES.forEach((facility) => {
-        const pos = projection([facility.lon, facility.lat]);
+      TRAVEL_INFRASTRUCTURE.filter(i => i.type === 'train').forEach((item) => {
+        const pos = projection([item.lon, item.lat]);
         if (!pos) return;
 
         const div = document.createElement('div');
-        const isHighlighted = this.highlightedAssets.nuclear.has(facility.id);
-        div.className = `nuclear-marker ${facility.status}${isHighlighted ? ' asset-highlight asset-highlight-nuclear' : ''}`;
+        const isHighlighted = this.highlightedAssets.nuclear.has(item.id); // Re-use nuclear highlight key for now
+        div.className = `infra-marker train ${isHighlighted ? ' asset-highlight' : ''}`;
         div.style.left = `${pos[0]}px`;
         div.style.top = `${pos[1]}px`;
-        div.title = `${facility.name} (${facility.type})`;
+        div.title = `${item.name} (Train Station)`;
 
+        const icon = document.createElement('div');
+        icon.className = 'infra-icon';
+        icon.textContent = '🚆';
+        div.appendChild(icon);
+        
         div.addEventListener('click', (e) => {
           e.stopPropagation();
           const rect = this.container.getBoundingClientRect();
           this.popup.show({
-            type: 'nuclear',
-            data: facility,
+            type: 'infrastructure',
+            data: item,
             x: e.clientX - rect.left,
             y: e.clientY - rect.top,
           });
@@ -1239,34 +1263,8 @@ export class MapComponent {
       });
     }
 
-    // Conflict zone click areas
-    if (this.state.layers.conflicts) {
-      CONFLICT_ZONES.forEach((zone) => {
-        const centerPos = projection(zone.center as [number, number]);
-        if (!centerPos) return;
-
-        const clickArea = document.createElement('div');
-        clickArea.className = 'conflict-click-area';
-        clickArea.style.left = `${centerPos[0] - 40}px`;
-        clickArea.style.top = `${centerPos[1] - 20}px`;
-        clickArea.style.width = '80px';
-        clickArea.style.height = '40px';
-        clickArea.style.cursor = 'pointer';
-
-        clickArea.addEventListener('click', (e) => {
-          e.stopPropagation();
-          const rect = this.container.getBoundingClientRect();
-          this.popup.show({
-            type: 'conflict',
-            data: zone,
-            x: e.clientX - rect.left,
-            y: e.clientY - rect.top,
-          });
-        });
-
-        this.overlays.appendChild(clickArea);
-      });
-    }
+    // Conflict zone click areas replaced by country interaction
+    // if (this.state.layers.conflicts) { ... }
 
     // Hotspots (always HTML - level colors and BREAKING badges)
     if (this.state.layers.hotspots) {
@@ -1302,29 +1300,40 @@ export class MapComponent {
       });
     }
 
-    // Military bases (always HTML - nation colors matter)
+    // Travel Infrastructure (Airports, Hotels)
+    // Replaces Military Bases
     if (this.state.layers.bases) {
-      MILITARY_BASES.forEach((base) => {
-        const pos = projection([base.lon, base.lat]);
+      TRAVEL_INFRASTRUCTURE.filter(i => i.type !== 'train').forEach((item) => {
+        const pos = projection([item.lon, item.lat]);
         if (!pos) return;
 
         const div = document.createElement('div');
-        const isHighlighted = this.highlightedAssets.base.has(base.id);
-        div.className = `base-marker ${base.type}${isHighlighted ? ' asset-highlight asset-highlight-base' : ''}`;
+        const isHighlighted = this.highlightedAssets.base.has(item.id);
+        
+        // Define icons and classes based on type
+        const icons: Record<string, string> = { airport: '✈️', hotel: '🏨', train: '🚆' };
+        const types: Record<string, string> = { airport: 'airport', hotel: 'hotel', train: 'transit' };
+        
+        div.className = `infra-marker ${types[item.type] || 'generic'} ${isHighlighted ? ' asset-highlight' : ''}`;
         div.style.left = `${pos[0]}px`;
         div.style.top = `${pos[1]}px`;
 
+        const icon = document.createElement('div');
+        icon.className = 'infra-icon';
+        icon.textContent = icons[item.type] || '📍';
+        div.appendChild(icon);
+
         const label = document.createElement('div');
-        label.className = 'base-label';
-        label.textContent = base.name;
+        label.className = 'infra-label';
+        label.textContent = item.name;
         div.appendChild(label);
 
         div.addEventListener('click', (e) => {
           e.stopPropagation();
           const rect = this.container.getBoundingClientRect();
           this.popup.show({
-            type: 'base',
-            data: base,
+            type: 'infrastructure', // Need to handle this in MapPopup
+            data: item,
             x: e.clientX - rect.left,
             y: e.clientY - rect.top,
           });
@@ -1978,64 +1987,33 @@ export class MapComponent {
 
     // Protests / Social Unrest Events (severity colors + icons) - with clustering
     // Filter to show only significant events on map (all events still used for CII analysis)
-    if (this.state.layers.protests) {
-      const significantProtests = this.protests.filter((event) => {
-        // Only show riots and high severity (red markers)
-        // All protests still counted in CII analysis
-        return event.eventType === 'riot' || event.severity === 'high';
-      });
+    // Events & Festivals (Replacing Protests)
+    if (this.state.layers.events) {
+      TRAVEL_EVENTS.forEach((event) => {
+        const pos = projection([event.lon, event.lat]);
+        if (!pos) return;
 
-      const clusterRadius = this.state.zoom >= 4 ? 12 : this.state.zoom >= 3 ? 20 : 35;
-      const clusters = this.clusterMarkers(significantProtests, projection, clusterRadius, p => p.country);
-
-      clusters.forEach((cluster) => {
-        if (cluster.items.length === 0) return;
         const div = document.createElement('div');
-        const isCluster = cluster.items.length > 1;
-        const primaryEvent = cluster.items[0]!;
-        const hasRiot = cluster.items.some(e => e.eventType === 'riot');
-        const hasHighSeverity = cluster.items.some(e => e.severity === 'high');
-
-        div.className = `protest-marker ${hasHighSeverity ? 'high' : primaryEvent.severity} ${hasRiot ? 'riot' : primaryEvent.eventType} ${isCluster ? 'cluster' : ''}`;
-        div.style.left = `${cluster.pos[0]}px`;
-        div.style.top = `${cluster.pos[1]}px`;
+        div.className = `event-marker ${event.type} ${event.status}`;
+        div.style.left = `${pos[0]}px`;
+        div.style.top = `${pos[1]}px`;
+        div.title = `${event.name} (${event.type})`;
 
         const icon = document.createElement('div');
-        icon.className = 'protest-icon';
-        icon.textContent = hasRiot ? '🔥' : primaryEvent.eventType === 'strike' ? '✊' : '📢';
+        icon.className = 'event-icon';
+        const icons: Record<string, string> = { festival: '🎪', concert: '🎵', sports: '⚽', cultural: '🎭' };
+        icon.textContent = icons[event.type] || '📅';
         div.appendChild(icon);
-
-        if (isCluster) {
-          const badge = document.createElement('div');
-          badge.className = 'cluster-badge';
-          badge.textContent = String(cluster.items.length);
-          div.appendChild(badge);
-          div.title = `${primaryEvent.country}: ${cluster.items.length} events`;
-        } else {
-          div.title = `${primaryEvent.city || primaryEvent.country} - ${primaryEvent.eventType} (${primaryEvent.severity})`;
-          if (primaryEvent.validated) {
-            div.classList.add('validated');
-          }
-        }
 
         div.addEventListener('click', (e) => {
           e.stopPropagation();
           const rect = this.container.getBoundingClientRect();
-          if (isCluster) {
-            this.popup.show({
-              type: 'protestCluster',
-              data: { items: cluster.items, country: primaryEvent.country },
-              x: e.clientX - rect.left,
-              y: e.clientY - rect.top,
-            });
-          } else {
-            this.popup.show({
-              type: 'protest',
-              data: primaryEvent,
-              x: e.clientX - rect.left,
-              y: e.clientY - rect.top,
-            });
-          }
+          this.popup.show({
+            type: 'event', // Supported in MapPopup now
+            data: event,
+            x: e.clientX - rect.left,
+            y: e.clientY - rect.top,
+          });
         });
 
         this.overlays.appendChild(div);
@@ -2665,7 +2643,7 @@ export class MapComponent {
   }
 
   private static readonly ASYNC_DATA_LAYERS: Set<keyof MapLayers> = new Set([
-    'natural', 'weather', 'outages', 'ais', 'protests', 'flights', 'military', 'techEvents',
+    'natural', 'weather', 'outages', 'ais', 'flights', 'military', 'techEvents',
   ]);
 
   public toggleLayer(layer: keyof MapLayers): void {
@@ -3192,10 +3170,7 @@ export class MapComponent {
     this.render();
   }
 
-  public setProtests(events: SocialUnrestEvent[]): void {
-    this.protests = events;
-    this.render();
-  }
+
 
   public setFlightDelays(delays: AirportDelayAlert[]): void {
     this.flightDelays = delays;

@@ -52,14 +52,12 @@ const SITE_VARIANT = import.meta.env.VITE_VARIANT || 'full';
 
 // Full variant: World news channels (24/7 live streams)
 const FULL_LIVE_CHANNELS: LiveChannel[] = [
-  { id: 'bloomberg', name: 'Bloomberg', handle: '@Bloomberg', fallbackVideoId: 'iEpJwprxDdk' },
-  { id: 'sky', name: 'SkyNews', handle: '@SkyNews', fallbackVideoId: 'YDvsBbKfLPA' },
-  { id: 'euronews', name: 'Euronews', handle: '@euabortnews', fallbackVideoId: 'pykpO5kQJ98' },
-  { id: 'dw', name: 'DW', handle: '@DWNews', fallbackVideoId: 'LuKwFajn37U' },
-  { id: 'cnbc', name: 'CNBC', handle: '@CNBC', fallbackVideoId: '9NyxcX3rhQs' },
-  { id: 'france24', name: 'France24', handle: '@FRANCE24English', fallbackVideoId: 'Ap-UM1O9RBU' },
-  { id: 'alarabiya', name: 'AlArabiya', handle: '@AlArabiya', fallbackVideoId: 'n7eQejkXbnM', useFallbackOnly: true },
-  { id: 'aljazeera', name: 'AlJazeera', handle: '@AlJazeeraEnglish', fallbackVideoId: 'gCNeDWCI0vo', useFallbackOnly: true },
+  { id: 'iss', name: 'Earth (ISS)', handle: '@NASA', fallbackVideoId: 'xRPjKQtRXR8' }, // ISS Live
+  { id: 'shibuya', name: 'Tokyo (Shibuya)', handle: '@ANNnewsCH', fallbackVideoId: 'H_Oh9jWfW3s' }, // ANN News often has live camera
+  { id: 'venice', name: 'Venice', handle: '@ILoveVenice', fallbackVideoId: 'ph1vpnYIxJk' }, // Venice Live
+  { id: 'times_square', name: 'New York', handle: '@EarthCam', fallbackVideoId: 'AduwnVRCvR0' }, // EarthCam TS
+  { id: 'safari', name: 'Kenya Safari', handle: '@Africam', fallbackVideoId: '8oFj0E_S490' }, // Africam
+  { id: 'train', name: 'Norway Rail', handle: '@RailCowGirl', fallbackVideoId: 'Dy4g039e1O0' }, // RailCowGirl
 ];
 
 // Tech variant: Tech & business channels
@@ -104,7 +102,7 @@ export class LiveNewsPanel extends Panel {
   private boundMessageHandler!: (e: MessageEvent) => void;
 
   constructor() {
-    super({ id: 'live-news', title: 'Live News', showCount: false, trackActivity: false });
+    super({ id: 'live-news', title: 'DESTINATION WEBCAMS', showCount: false, trackActivity: false });
     this.youtubeOrigin = LiveNewsPanel.resolveYouTubeOrigin();
     this.playerElementId = `live-news-player-${Date.now()}`;
     this.element.classList.add('panel-wide');

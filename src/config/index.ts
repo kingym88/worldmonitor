@@ -99,3 +99,7 @@ export {
   type TechHQ,
   type CloudRegion,
 } from './tech-geo';
+
+// Travel Refactor
+export { TRAVEL_INFRASTRUCTURE, type TravelInfrastructure } from './travel-infrastructure';
+export { TRAVEL_EVENTS, type TravelEvent } from './events';

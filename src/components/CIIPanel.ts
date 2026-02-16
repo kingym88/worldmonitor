@@ -10,20 +10,18 @@ export class CIIPanel extends Panel {
   constructor() {
     super({
       id: 'cii',
-      title: 'Country Instability Index',
+      title: 'DESTINATION DEMAND INDEX',
       showCount: true,
       trackActivity: true,
-      infoTooltip: `<strong>CII Methodology</strong>
-        Score (0-100) per country based on:
+      infoTooltip: `<strong>DDI Methodology</strong>
+        Score (0-100) indicating travel demand and safety:
         <ul>
-          <li>40% baseline geopolitical risk</li>
-          <li><strong>U</strong>nrest: protests, fatalities, internet outages</li>
-          <li><strong>S</strong>ecurity: military flights/vessels over territory</li>
-          <li><strong>I</strong>nformation: news velocity and focal point correlation</li>
-          <li>Hotspot proximity boost (strategic locations)</li>
+          <li><strong>Safety</strong>: Inverse of conflict/unrest risk</li>
+          <li><strong>Stability</strong>: Political stability and governance</li>
+          <li><strong>Interest</strong>: Search and news volume signals</li>
+          <li><strong>Access</strong>: Flight connectivity and open borders</li>
         </ul>
-        <em>U:S:I values show component scores.</em>
-        Focal Point Detection correlates news entities with map signals for accurate scoring.`,
+        <em>High Score = High Demand & Safety.</em>`,
     });
     this.showLoading('Scanning intelligence feeds');
   }
@@ -59,28 +57,45 @@ export class CIIPanel extends Panel {
   }
 
   private renderCountry(country: CountryScore): string {
-    const barWidth = country.score;
+    // DDI Inversion: High Risk (CII) = Low Demand. So DDI = 100 - Risk.
+    // However, for UI, if backend still returns Risk, we invert here.
+    // Assuming backend returns RISK (0=Safe, 100=Critical).
+    // DDI: 100=High Demand (Safe), 0=Low Demand ( unsafe).
+    const ddiScore = Math.max(0, 100 - country.score);
+    const barWidth = ddiScore;
+    
+    // Invert level colors for DDI (Green=High Score=Good, Red=Low Score=Bad)
+    // But getLevelColor handles Risk levels (Critical=Red).
+    // If we pass Risk Level, it returns Red. We want Red for Low DDI.
+    // So if Risk is Critical (High Score), DDI is Low (Red).
+    // So getLevelColor(country.level) returns Red for Critical Risk.
+    // This matches: Low DDI (Red) = Critical Risk.
     const color = this.getLevelColor(country.level);
+    
+    // Emoji: Critical Risk = Red Circle. Matches Low DDI.
     const emoji = this.getLevelEmoji(country.level);
-    const trend = this.getTrendArrow(country.trend, country.change24h);
+    
+    // Trend: If Risk Rising -> DDI Falling. Invert trend arrow.
+    const ddiTrend = country.trend === 'rising' ? 'falling' : country.trend === 'falling' ? 'rising' : 'stable';
+    const trendArrow = this.getTrendArrow(ddiTrend, country.change24h);
 
     return `
       <div class="cii-country" data-code="${escapeHtml(country.code)}">
         <div class="cii-header">
           <span class="cii-emoji">${emoji}</span>
           <span class="cii-name">${escapeHtml(country.name)}</span>
-          <span class="cii-score">${country.score}</span>
-          ${trend}
+          <span class="cii-score">${ddiScore}</span>
+          ${trendArrow}
           <button class="cii-share-btn" data-code="${escapeHtml(country.code)}" data-name="${escapeHtml(country.name)}" title="Share story"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v7a2 2 0 002 2h12a2 2 0 002-2v-7"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg></button>
         </div>
         <div class="cii-bar-container">
           <div class="cii-bar" style="width: ${barWidth}%; background: ${color};"></div>
         </div>
         <div class="cii-components">
-          <span title="Unrest">U:${country.components.unrest}</span>
-          <span title="Conflict">C:${country.components.conflict}</span>
-          <span title="Security">S:${country.components.security}</span>
-          <span title="Information">I:${country.components.information}</span>
+          <span title="Interest">I:${country.components.information}</span>
+          <span title="Safety">S:${100 - country.components.conflict}</span>
+          <span title="Access">A:${100 - country.components.security}</span>
+          <span title="Events">E:${country.components.unrest}</span>
         </div>
       </div>
     `;

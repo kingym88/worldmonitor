@@ -17,7 +17,7 @@ export class EconomicPanel extends Panel {
   private activeTab: TabId = 'indicators';
 
   constructor() {
-    super({ id: 'economic', title: 'Economic Data' });
+    super({ id: 'economic', title: 'TRAVEL MACRO INDICATORS' });
   }
 
   public update(data: FredSeries[]): void {
@@ -54,12 +54,7 @@ export class EconomicPanel extends Panel {
         </button>
         ${hasOil ? `
           <button class="economic-tab ${this.activeTab === 'oil' ? 'active' : ''}" data-tab="oil">
-            🛢️ Oil
-          </button>
-        ` : ''}
-        ${hasSpending ? `
-          <button class="economic-tab ${this.activeTab === 'spending' ? 'active' : ''}" data-tab="spending">
-            🏛️ Gov
+            🛢️ Fuel
           </button>
         ` : ''}
       </div>
@@ -75,7 +70,7 @@ export class EconomicPanel extends Panel {
         contentHtml = this.renderOil();
         break;
       case 'spending':
-        contentHtml = this.renderSpending();
+        // contentHtml = this.renderSpending(); // Disabled for Travel Monitor
         break;
     }
 

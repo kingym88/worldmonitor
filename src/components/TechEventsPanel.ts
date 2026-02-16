@@ -39,7 +39,7 @@ export class TechEventsPanel extends Panel {
   private error: string | null = null;
 
   constructor(id: string) {
-    super({ id, title: 'Tech Events', showCount: true });
+    super({ id, title: 'TRAVEL INDUSTRY EVENTS', showCount: true });
     this.element.classList.add('panel-tall');
     void this.fetchEvents();
   }

@@ -1,4 +1,4 @@
-import type { NewsItem, Monitor, PanelConfig, MapLayers, RelatedAsset, InternetOutage, SocialUnrestEvent, MilitaryFlight, MilitaryVessel, MilitaryFlightCluster, MilitaryVesselCluster, CyberThreat } from '@/types';
+import type { NewsItem, Monitor, PanelConfig, MapLayers, RelatedAsset, InternetOutage, MilitaryFlight, MilitaryVessel, MilitaryFlightCluster, MilitaryVesselCluster, CyberThreat } from '@/types';
 import {
   FEEDS,
   INTEL_SOURCES,
@@ -11,24 +11,25 @@ import {
   MOBILE_DEFAULT_MAP_LAYERS,
   STORAGE_KEYS,
   SITE_VARIANT,
+  TRAVEL_EVENTS,
 } from '@/config';
-import { fetchCategoryFeeds, fetchMultipleStocks, fetchCrypto, fetchPredictions, fetchEarthquakes, fetchWeatherAlerts, fetchFredData, fetchInternetOutages, isOutagesConfigured, fetchAisSignals, initAisStream, getAisStatus, disconnectAisStream, isAisConfigured, fetchCableActivity, fetchProtestEvents, getProtestStatus, fetchFlightDelays, fetchMilitaryFlights, fetchMilitaryVessels, initMilitaryVesselStream, isMilitaryVesselTrackingConfigured, initDB, updateBaseline, calculateDeviation, addToSignalHistory, saveSnapshot, cleanOldSnapshots, analysisWorker, fetchPizzIntStatus, fetchGdeltTensions, fetchNaturalEvents, fetchRecentAwards, fetchOilAnalytics, fetchCyberThreats, drainTrendingSignals } from '@/services';
+import { fetchCategoryFeeds, fetchMultipleStocks, fetchCrypto, fetchPredictions, fetchEarthquakes, fetchWeatherAlerts, fetchFredData, fetchInternetOutages, isOutagesConfigured, fetchAisSignals, initAisStream, getAisStatus, disconnectAisStream, isAisConfigured, fetchCableActivity, fetchFlightDelays, fetchMilitaryFlights, fetchMilitaryVessels, initMilitaryVesselStream, isMilitaryVesselTrackingConfigured, initDB, updateBaseline, calculateDeviation, addToSignalHistory, saveSnapshot, cleanOldSnapshots, analysisWorker, fetchPizzIntStatus, fetchGdeltTensions, fetchNaturalEvents, fetchRecentAwards, fetchOilAnalytics, fetchCyberThreats, drainTrendingSignals } from '@/services';
 import { fetchCountryMarkets } from '@/services/polymarket';
 import { mlWorker } from '@/services/ml-worker';
 import { clusterNewsHybrid } from '@/services/clustering';
-import { ingestProtests, ingestFlights, ingestVessels, ingestEarthquakes, detectGeoConvergence, geoConvergenceToSignal } from '@/services/geo-convergence';
+import { ingestFlights, ingestVessels, ingestEarthquakes, detectGeoConvergence, geoConvergenceToSignal } from '@/services/geo-convergence';
 import { signalAggregator } from '@/services/signal-aggregator';
 import { updateAndCheck } from '@/services/temporal-baseline';
 import { fetchAllFires, flattenFires, computeRegionStats } from '@/services/firms-satellite';
 import { SatelliteFiresPanel } from '@/components/SatelliteFiresPanel';
 import { analyzeFlightsForSurge, surgeAlertToSignal, detectForeignMilitaryPresence, foreignPresenceToSignal, type TheaterPostureSummary } from '@/services/military-surge';
 import { fetchCachedTheaterPosture } from '@/services/cached-theater-posture';
-import { ingestProtestsForCII, ingestMilitaryForCII, ingestNewsForCII, ingestOutagesForCII, ingestConflictsForCII, ingestUcdpForCII, ingestHapiForCII, ingestDisplacementForCII, ingestClimateForCII, startLearning, isInLearningMode, calculateCII, getCountryData, TIER1_COUNTRIES } from '@/services/country-instability';
+import { ingestMilitaryForCII, ingestNewsForCII, ingestOutagesForCII, ingestConflictsForCII, ingestUcdpForCII, ingestHapiForCII, ingestDisplacementForCII, ingestClimateForCII, startLearning, isInLearningMode, calculateCII, getCountryData, TIER1_COUNTRIES } from '@/services/country-instability';
 import { dataFreshness, type DataSourceId } from '@/services/data-freshness';
 import { fetchConflictEvents } from '@/services/conflicts';
 import { fetchUcdpClassifications } from '@/services/ucdp';
 import { fetchHapiSummary } from '@/services/hapi';
-import { fetchUcdpEvents, deduplicateAgainstAcled } from '@/services/ucdp-events';
+import { fetchUcdpEvents } from '@/services/ucdp-events';
 import { fetchUnhcrPopulation } from '@/services/unhcr';
 import { fetchClimateAnomalies } from '@/services/climate';
 import { enrichEventsWithExposure } from '@/services/population-exposure';
@@ -45,6 +46,7 @@ import {
   NewsPanel,
   MarketPanel,
   HeatmapPanel,
+
   CommoditiesPanel,
   CryptoPanel,
   PredictionPanel,
@@ -76,6 +78,7 @@ import {
   DisplacementPanel,
   ClimateAnomalyPanel,
   PopulationExposurePanel,
+  ExpediaMonitorPanel,
 } from '@/components';
 import type { SearchResult } from '@/components/SearchModal';
 import { collectStoryData } from '@/services/story-data';
@@ -99,10 +102,12 @@ type IntlDisplayNamesCtor = new (
   options: { type: 'region' }
 ) => { of: (code: string) => string | undefined };
 
-const CYBER_LAYER_ENABLED = import.meta.env.VITE_ENABLE_CYBER_LAYER === 'true';
+const CYBER_LAYER_ENABLED = (import.meta as any).env.VITE_ENABLE_CYBER_LAYER === 'true';
+
+
 
 export interface CountryBriefSignals {
-  protests: number;
+  events: number;
   militaryFlights: number;
   militaryVessels: number;
   outages: number;
@@ -151,9 +156,8 @@ export class App {
   private isIdle = false;
   private readonly IDLE_PAUSE_MS = 2 * 60 * 1000; // 2 minutes - pause animations when idle
   private disabledSources: Set<string> = new Set();
-  private mapFlashCache: Map<string, number> = new Map();
-  private readonly MAP_FLASH_COOLDOWN_MS = 10 * 60 * 1000;
   private initialLoadComplete = false;
+
   private criticalBannerEl: HTMLElement | null = null;
   private countryBriefPage: CountryBriefPage | null = null;
   private countryTimeline: CountryTimeline | null = null;
@@ -262,7 +266,7 @@ export class App {
     if (this.initialUrlState.layers) {
       // For tech variant, filter out geopolitical layers from URL
       if (currentVariant === 'tech') {
-        const geoLayers: (keyof MapLayers)[] = ['conflicts', 'bases', 'hotspots', 'nuclear', 'irradiators', 'sanctions', 'military', 'protests', 'pipelines', 'waterways', 'ais', 'flights', 'spaceports', 'minerals'];
+        const geoLayers: (keyof MapLayers)[] = ['safety', 'bases', 'hotspots', 'nuclear', 'irradiators', 'sanctions', 'military', 'pipelines', 'waterways', 'ais', 'flights', 'spaceports', 'minerals'];
         const urlLayers = this.initialUrlState.layers;
         geoLayers.forEach(layer => {
           urlLayers[layer] = false;
@@ -464,7 +468,7 @@ export class App {
       weather: ['weather'],
       outages: ['outages'],
       cyberThreats: ['cyber_threats'],
-      protests: ['acled'],
+      // protests layer removed
       ucdpEvents: ['ucdp_events'],
       displacement: ['unhcr'],
       climate: ['climate'],
@@ -501,7 +505,7 @@ export class App {
         weather: ['weather'],
         outages: ['outages'],
         cyberThreats: ['cyber_threats'],
-        protests: ['acled'],
+        // protests layer removed
         ucdpEvents: ['ucdp_events'],
         displacement: ['unhcr'],
         climate: ['climate'],
@@ -531,6 +535,7 @@ export class App {
       }
     });
   }
+
 
   private setupCountryIntel(): void {
     if (!this.map) return;
@@ -725,7 +730,7 @@ export class App {
         } else {
           const lines: string[] = [];
           if (score) lines.push(`**Instability Index: ${score.score}/100** (${score.level}, ${score.trend})`);
-          if (signals.protests > 0) lines.push(`${signals.protests} active protests detected`);
+          if (signals.events > 0) lines.push(`${signals.events} active travel events detected`);
           if (signals.militaryFlights > 0) lines.push(`${signals.militaryFlights} military aircraft tracked`);
           if (signals.militaryVessels > 0) lines.push(`${signals.militaryVessels} military vessels tracked`);
           if (signals.outages > 0) lines.push(`${signals.outages} internet outages`);
@@ -761,18 +766,18 @@ export class App {
     const inCountry = (lat: number, lon: number) => hasGeoShape && this.isInCountry(lat, lon, code);
     const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
 
-    if (this.intelligenceCache.protests?.events) {
-      for (const e of this.intelligenceCache.protests.events) {
-        if (e.country?.toLowerCase() === countryLower || inCountry(e.lat, e.lon)) {
-          events.push({
-            timestamp: new Date(e.time).getTime(),
-            lane: 'protest',
-            label: e.title || `${e.eventType} in ${e.city || e.country}`,
-            severity: e.severity === 'high' ? 'high' : e.severity === 'medium' ? 'medium' : 'low',
-          });
-        }
+    // Protests replaced by Travel Events
+    TRAVEL_EVENTS.forEach(event => {
+      // Basic country check - in future we could check lat/lon if needed
+      if ((event.country && countryLower.includes(event.country.toLowerCase())) || (hasGeoShape && this.isInCountry(event.lat, event.lon, code))) {
+        events.push({
+          timestamp: new Date(event.date).getTime(),
+          lane: 'protest', // Keeping lane for now or rename to 'event'
+          label: `${event.name} (${event.type})`,
+          severity: 'medium', // Default severity
+        });
       }
-    }
+    });
 
     if (this.intelligenceCache.earthquakes) {
       for (const eq of this.intelligenceCache.earthquakes) {
@@ -930,55 +935,19 @@ export class App {
   }
 
   private getCountrySignals(code: string, country: string): CountryBriefSignals {
+    // Protests replaced by Travel Events
     const countryLower = country.toLowerCase();
-    const hasGeoShape = hasCountryGeometry(code) || !!App.COUNTRY_BOUNDS[code];
-
-    let protests = 0;
-    if (this.intelligenceCache.protests?.events) {
-      protests = this.intelligenceCache.protests.events.filter((e) =>
-        e.country?.toLowerCase() === countryLower || (hasGeoShape && this.isInCountry(e.lat, e.lon, code))
-      ).length;
-    }
-
-    let militaryFlights = 0;
-    let militaryVessels = 0;
-    if (this.intelligenceCache.military) {
-      militaryFlights = this.intelligenceCache.military.flights.filter((f) =>
-        hasGeoShape ? this.isInCountry(f.lat, f.lon, code) : f.operatorCountry?.toUpperCase() === code
-      ).length;
-      militaryVessels = this.intelligenceCache.military.vessels.filter((v) =>
-        hasGeoShape ? this.isInCountry(v.lat, v.lon, code) : v.operatorCountry?.toUpperCase() === code
-      ).length;
-    }
-
-    let outages = 0;
-    if (this.intelligenceCache.outages) {
-      outages = this.intelligenceCache.outages.filter((o) =>
-        o.country?.toLowerCase() === countryLower || (hasGeoShape && this.isInCountry(o.lat, o.lon, code))
-      ).length;
-    }
-
-    let earthquakes = 0;
-    if (this.intelligenceCache.earthquakes) {
-      earthquakes = this.intelligenceCache.earthquakes.filter((eq) => {
-        if (hasGeoShape) return this.isInCountry(eq.lat, eq.lon, code);
-        return eq.place?.toLowerCase().includes(countryLower);
-      }).length;
-    }
-
-    const ciiData = getCountryData(code);
-    const isTier1 = !!TIER1_COUNTRIES[code];
 
     return {
-      protests,
-      militaryFlights,
-      militaryVessels,
-      outages,
-      earthquakes,
-      displacementOutflow: ciiData?.displacementOutflow ?? 0,
-      climateStress: ciiData?.climateStress ?? 0,
-      conflictEvents: ciiData?.conflicts?.length ?? 0,
-      isTier1,
+      events: this.map?.getEvents().filter(e => e.country?.toLowerCase() === countryLower || e.location?.toLowerCase().includes(countryLower)).length || 0,
+      militaryFlights: this.intelligenceCache.military?.flights.filter(f => f.operatorCountry?.toLowerCase() === countryLower).length || 0,
+      militaryVessels: this.intelligenceCache.military?.vessels.filter(v => v.operatorCountry.toLowerCase() === countryLower).length || 0,
+      outages: this.intelligenceCache.outages?.filter(o => o.country?.toLowerCase() === countryLower).length || 0,
+      earthquakes: this.intelligenceCache.earthquakes?.filter((e) => e.place.toLowerCase().includes(countryLower)).length ?? 0,
+      displacementOutflow: 0, // Placeholder
+      climateStress: 0, // Placeholder
+      conflictEvents: 0, // Placeholder
+      isTier1: Object.keys(TIER1_COUNTRIES).includes(code),
     };
   }
 
@@ -1488,9 +1457,6 @@ export class App {
             <svg class="x-logo" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
             <span class="credit-text">@eliehabib</span>
           </a>
-          <a href="https://github.com/koala73/worldmonitor" target="_blank" rel="noopener" class="github-link" title="View on GitHub">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
-          </a>
           <div class="status-indicator">
             <span class="status-dot"></span>
             <span>LIVE</span>
@@ -1711,7 +1677,7 @@ export class App {
     this.map.initEscalationGetters();
 
     // Create all panels
-    const politicsPanel = new NewsPanel('politics', 'World / Geopolitical');
+    const politicsPanel = new NewsPanel('politics', 'Travel & Tourism News');
     this.attachRelatedAssetHandlers(politicsPanel);
     this.newsPanels['politics'] = politicsPanel;
     this.panels['politics'] = politicsPanel;
@@ -1745,6 +1711,9 @@ export class App {
 
     const predictionPanel = new PredictionPanel();
     this.panels['polymarket'] = predictionPanel;
+
+    const expediaPanel = new ExpediaMonitorPanel();
+    this.panels['expedia-monitor'] = expediaPanel;
 
     const govPanel = new NewsPanel('gov', 'Government / Policy');
     this.attachRelatedAssetHandlers(govPanel);
@@ -1835,7 +1804,7 @@ export class App {
     this.newsPanels['dev'] = devPanel;
     this.panels['dev'] = devPanel;
 
-    const githubPanel = new NewsPanel('github', 'GitHub Trending');
+    const githubPanel = new NewsPanel('github', 'Travel Tech Innovations');
     this.attachRelatedAssetHandlers(githubPanel);
     this.newsPanels['github'] = githubPanel;
     this.panels['github'] = githubPanel;
@@ -2583,46 +2552,34 @@ export class App {
       { name: 'news', task: runGuarded('news', () => this.loadNews()) },
       { name: 'markets', task: runGuarded('markets', () => this.loadMarkets()) },
       { name: 'predictions', task: runGuarded('predictions', () => this.loadPredictions()) },
-      { name: 'pizzint', task: runGuarded('pizzint', () => this.loadPizzInt()) },
-      { name: 'fred', task: runGuarded('fred', () => this.loadFredData()) },
-      { name: 'oil', task: runGuarded('oil', () => this.loadOilAnalytics()) },
-      { name: 'spending', task: runGuarded('spending', () => this.loadGovernmentSpending()) },
     ];
 
-    // Load intelligence signals for CII calculation (protests, military, outages)
-    // Only for geopolitical variant - tech variant doesn't need CII/focal points
+    // Load intelligence signals for CII calculation
     if (SITE_VARIANT === 'full') {
       tasks.push({ name: 'intelligence', task: runGuarded('intelligence', () => this.loadIntelligenceSignals()) });
     }
 
-    // Conditionally load non-intelligence layers
-    // NOTE: outages, protests, military are handled by loadIntelligenceSignals() above
-    // They update the map when layers are enabled, so no duplicate tasks needed here
-    if (SITE_VARIANT === 'full') tasks.push({ name: 'firms', task: runGuarded('firms', () => this.loadFirmsData()) });
-    if (this.mapLayers.natural) tasks.push({ name: 'natural', task: runGuarded('natural', () => this.loadNatural()) });
-    if (this.mapLayers.weather) tasks.push({ name: 'weather', task: runGuarded('weather', () => this.loadWeatherAlerts()) });
-    if (this.mapLayers.ais) tasks.push({ name: 'ais', task: runGuarded('ais', () => this.loadAisSignals()) });
-    if (this.mapLayers.cables) tasks.push({ name: 'cables', task: runGuarded('cables', () => this.loadCableActivity()) });
-    if (this.mapLayers.flights) tasks.push({ name: 'flights', task: runGuarded('flights', () => this.loadFlightDelays()) });
-    if (CYBER_LAYER_ENABLED && this.mapLayers.cyberThreats) tasks.push({ name: 'cyberThreats', task: runGuarded('cyberThreats', () => this.loadCyberThreats()) });
-    if (this.mapLayers.techEvents || SITE_VARIANT === 'tech') tasks.push({ name: 'techEvents', task: runGuarded('techEvents', () => this.loadTechEvents()) });
+    // Load enabled map layers
+    Object.entries(this.mapLayers).forEach(([layer, enabled]) => {
+      if (enabled) {
+        tasks.push({ name: layer, task: this.loadDataForLayer(layer as keyof MapLayers) });
+      }
+    });
 
     // Tech Readiness panel (tech variant only)
     if (SITE_VARIANT === 'tech') {
-      tasks.push({ name: 'techReadiness', task: runGuarded('techReadiness', () => (this.panels['tech-readiness'] as TechReadinessPanel)?.refresh()) });
+      // tasks.push({ name: 'techReadiness', task: runGuarded('techReadiness', () => (this.panels['tech-readiness'] as TechReadinessPanel)?.refresh()) });
     }
 
-    // Use allSettled to ensure all tasks complete and search index always updates
     const results = await Promise.allSettled(tasks.map(t => t.task));
-
-    // Log any failures but don't block
+    
+    // Log failures
     results.forEach((result, idx) => {
       if (result.status === 'rejected') {
         console.error(`[App] ${tasks[idx]?.name} load failed:`, result.reason);
       }
     });
 
-    // Always update search index regardless of individual task failures
     this.updateSearchIndex();
   }
 
@@ -2632,108 +2589,25 @@ export class App {
     this.map?.setLayerLoading(layer, true);
     try {
       switch (layer) {
-        case 'natural':
-          await this.loadNatural();
-          break;
-        case 'fires':
-          await this.loadFirmsData();
-          break;
-        case 'weather':
-          await this.loadWeatherAlerts();
-          break;
-        case 'outages':
-          await this.loadOutages();
-          break;
-        case 'cyberThreats':
-          await this.loadCyberThreats();
-          break;
-        case 'ais':
-          await this.loadAisSignals();
-          break;
-        case 'cables':
-          await this.loadCableActivity();
-          break;
-        case 'protests':
-          await this.loadProtests();
-          break;
-        case 'flights':
-          await this.loadFlightDelays();
-          break;
+        case 'natural': await this.loadNatural(); break;
+        // case 'fires': await this.loadFirmsData(); break; 
+        case 'weather': await this.loadWeatherAlerts(); break;
+        case 'outages': 
         case 'military':
-          await this.loadMilitary();
-          break;
-        case 'techEvents':
-          console.log('[loadDataForLayer] Loading techEvents...');
-          await this.loadTechEvents();
-          console.log('[loadDataForLayer] techEvents loaded');
-          break;
         case 'ucdpEvents':
         case 'displacement':
         case 'climate':
-          await this.loadIntelligenceSignals();
+          await this.loadIntelligenceSignals(); 
           break;
+        case 'cyberThreats': await this.loadCyberThreats(); break;
+        case 'ais': await this.loadAisSignals(); break;
+        case 'cables': await this.loadCableActivity(); break;
+        case 'flights': await this.loadFlightDelays(); break;
+        case 'techEvents': await this.loadTechEvents(); break;
       }
     } finally {
       this.inFlight.delete(layer);
       this.map?.setLayerLoading(layer, false);
-    }
-  }
-
-  private findFlashLocation(title: string): { lat: number; lon: number } | null {
-    const titleLower = title.toLowerCase();
-    let bestMatch: { lat: number; lon: number; matches: number } | null = null;
-
-    const countKeywordMatches = (keywords: string[] | undefined): number => {
-      if (!keywords) return 0;
-      let matches = 0;
-      for (const keyword of keywords) {
-        const cleaned = keyword.trim().toLowerCase();
-        if (cleaned.length >= 3 && titleLower.includes(cleaned)) {
-          matches++;
-        }
-      }
-      return matches;
-    };
-
-    for (const hotspot of INTEL_HOTSPOTS) {
-      const matches = countKeywordMatches(hotspot.keywords);
-      if (matches > 0 && (!bestMatch || matches > bestMatch.matches)) {
-        bestMatch = { lat: hotspot.lat, lon: hotspot.lon, matches };
-      }
-    }
-
-    for (const conflict of CONFLICT_ZONES) {
-      const matches = countKeywordMatches(conflict.keywords);
-      if (matches > 0 && (!bestMatch || matches > bestMatch.matches)) {
-        bestMatch = { lat: conflict.center[1], lon: conflict.center[0], matches };
-      }
-    }
-
-    return bestMatch;
-  }
-
-  private flashMapForNews(items: NewsItem[]): void {
-    if (!this.map || !this.initialLoadComplete) return;
-    const now = Date.now();
-
-    for (const [key, timestamp] of this.mapFlashCache.entries()) {
-      if (now - timestamp > this.MAP_FLASH_COOLDOWN_MS) {
-        this.mapFlashCache.delete(key);
-      }
-    }
-
-    for (const item of items) {
-      const cacheKey = `${item.source}|${item.link || item.title}`;
-      const lastSeen = this.mapFlashCache.get(cacheKey);
-      if (lastSeen && now - lastSeen < this.MAP_FLASH_COOLDOWN_MS) {
-        continue;
-      }
-
-      const location = this.findFlashLocation(item.title);
-      if (!location) continue;
-
-      this.map.flashLocation(location.lat, location.lon);
-      this.mapFlashCache.set(cacheKey, now);
     }
   }
 
@@ -2787,7 +2661,7 @@ export class App {
       const items = await fetchCategoryFeeds(enabledFeeds, {
         onBatch: (partialItems) => {
           scheduleRender(partialItems);
-          this.flashMapForNews(partialItems);
+          this.map?.updateHotspotActivity(partialItems);
         },
       });
 
@@ -2889,7 +2763,7 @@ export class App {
           }
           this.statusPanel?.updateFeed('Intel', { status: 'ok', itemCount: intel.length });
           collectedNews.push(...intel);
-          this.flashMapForNews(intel);
+          this.map?.updateHotspotActivity(intel);
         } else {
           console.error('[App] Intel feed failed:', intelResult[0]?.reason);
         }
@@ -3135,7 +3009,6 @@ export class App {
   // Cache for intelligence data - allows CII to work even when layers are disabled
   private intelligenceCache: {
     outages?: InternetOutage[];
-    protests?: { events: SocialUnrestEvent[]; sources: { acled: number; gdelt: number } };
     military?: { flights: MilitaryFlight[]; flightClusters: MilitaryFlightCluster[]; vessels: MilitaryVessel[]; vesselClusters: MilitaryVesselCluster[] };
     earthquakes?: import('@/types').Earthquake[];
   } = {};
@@ -3169,37 +3042,7 @@ export class App {
       }
     })());
 
-    // Always fetch protests for CII (unrest = core instability metric)
-    // This task is also used by UCDP deduplication, so keep it as a shared promise.
-    const protestsTask = (async (): Promise<SocialUnrestEvent[]> => {
-      try {
-        const protestData = await fetchProtestEvents();
-        this.intelligenceCache.protests = protestData;
-        ingestProtests(protestData.events);
-        ingestProtestsForCII(protestData.events);
-        signalAggregator.ingestProtests(protestData.events);
-        const protestCount = protestData.sources.acled + protestData.sources.gdelt;
-        if (protestCount > 0) dataFreshness.recordUpdate('acled', protestCount);
-        if (protestData.sources.gdelt > 0) dataFreshness.recordUpdate('gdelt', protestData.sources.gdelt);
-        // Update map only if layer is visible
-        if (this.mapLayers.protests) {
-          this.map?.setProtests(protestData.events);
-          this.map?.setLayerReady('protests', protestData.events.length > 0);
-          const status = getProtestStatus();
-          this.statusPanel?.updateFeed('Protests', {
-            status: 'ok',
-            itemCount: protestData.events.length,
-            errorMessage: status.acledConfigured === false ? 'ACLED not configured - using GDELT only' : undefined,
-          });
-        }
-        return protestData.events;
-      } catch (error) {
-        console.error('[Intelligence] Protests fetch failed:', error);
-        dataFreshness.recordError('acled', String(error));
-        return [];
-      }
-    })();
-    tasks.push(protestsTask.then(() => undefined));
+
 
     // Fetch armed conflict events (battles, explosions, violence) for CII
     tasks.push((async () => {
@@ -3256,6 +3099,7 @@ export class App {
         ingestFlights(flightData.flights);
         ingestVessels(vesselData.vessels);
         ingestMilitaryForCII(flightData.flights, vesselData.vessels);
+        this.loadCachedPosturesForBanner();
         signalAggregator.ingestFlights(flightData.flights);
         signalAggregator.ingestVessels(vesselData.vessels);
         dataFreshness.recordUpdate('opensky', flightData.flights.length);
@@ -3301,18 +3145,12 @@ export class App {
     // Fetch UCDP georeferenced events (battles, one-sided violence, non-state conflict)
     tasks.push((async () => {
       try {
-        const [result, protestEvents] = await Promise.all([
-          fetchUcdpEvents(),
-          protestsTask,
-        ]);
+        const result = await fetchUcdpEvents();
         if (!result.success) {
           dataFreshness.recordError('ucdp_events', 'UCDP events unavailable (retaining prior event state)');
           return;
         }
-        const acledEvents = protestEvents.map(e => ({
-          latitude: e.lat, longitude: e.lon, event_date: e.time.toISOString(), fatalities: e.fatalities ?? 0,
-        }));
-        const events = deduplicateAgainstAcled(result.data, acledEvents);
+        const events = result.data;
         (this.panels['ucdp-events'] as UcdpEventsPanel)?.setEvents(events);
         if (this.mapLayers.ucdpEvents) {
           this.map?.setUcdpEvents(events);
@@ -3373,9 +3211,7 @@ export class App {
     try {
       const ucdpEvts = (this.panels['ucdp-events'] as UcdpEventsPanel)?.getEvents?.() || [];
       const events = [
-        ...(this.intelligenceCache.protests?.events || []).slice(0, 10).map(e => ({
-          id: e.id, lat: e.lat, lon: e.lon, type: 'conflict' as const, name: e.title || 'Protest',
-        })),
+        // Protests removed from exposure calc
         ...ucdpEvts.slice(0, 10).map(e => ({
           id: e.id, lat: e.latitude, lon: e.longitude, type: e.type_of_violence as string, name: `${e.side_a} vs ${e.side_b}`,
         })),
@@ -3395,30 +3231,7 @@ export class App {
     console.log('[Intelligence] All signals loaded for CII calculation');
   }
 
-  private async loadOutages(): Promise<void> {
-    // Use cached data if available
-    if (this.intelligenceCache.outages) {
-      const outages = this.intelligenceCache.outages;
-      this.map?.setOutages(outages);
-      this.map?.setLayerReady('outages', outages.length > 0);
-      this.statusPanel?.updateFeed('NetBlocks', { status: 'ok', itemCount: outages.length });
-      return;
-    }
-    try {
-      const outages = await fetchInternetOutages();
-      this.intelligenceCache.outages = outages;
-      this.map?.setOutages(outages);
-      this.map?.setLayerReady('outages', outages.length > 0);
-      ingestOutagesForCII(outages);
-      signalAggregator.ingestOutages(outages);
-      this.statusPanel?.updateFeed('NetBlocks', { status: 'ok', itemCount: outages.length });
-      dataFreshness.recordUpdate('outages', outages.length);
-    } catch (error) {
-      this.map?.setLayerReady('outages', false);
-      this.statusPanel?.updateFeed('NetBlocks', { status: 'error' });
-      dataFreshness.recordError('outages', String(error));
-    }
-  }
+
 
   private async loadCyberThreats(): Promise<void> {
     if (!CYBER_LAYER_ENABLED) {
@@ -3527,57 +3340,8 @@ export class App {
     }
   }
 
-  private async loadProtests(): Promise<void> {
-    // Use cached data if available (from loadIntelligenceSignals)
-    if (this.intelligenceCache.protests) {
-      const protestData = this.intelligenceCache.protests;
-      this.map?.setProtests(protestData.events);
-      this.map?.setLayerReady('protests', protestData.events.length > 0);
-      const status = getProtestStatus();
-      this.statusPanel?.updateFeed('Protests', {
-        status: 'ok',
-        itemCount: protestData.events.length,
-        errorMessage: status.acledConfigured === false ? 'ACLED not configured - using GDELT only' : undefined,
-      });
-      if (status.acledConfigured === true) {
-        this.statusPanel?.updateApi('ACLED', { status: 'ok' });
-      } else if (status.acledConfigured === null) {
-        this.statusPanel?.updateApi('ACLED', { status: 'warning' });
-      }
-      this.statusPanel?.updateApi('GDELT', { status: 'ok' });
-      return;
-    }
-    try {
-      const protestData = await fetchProtestEvents();
-      this.intelligenceCache.protests = protestData;
-      this.map?.setProtests(protestData.events);
-      this.map?.setLayerReady('protests', protestData.events.length > 0);
-      ingestProtests(protestData.events);
-      ingestProtestsForCII(protestData.events);
-      signalAggregator.ingestProtests(protestData.events);
-      const protestCount = protestData.sources.acled + protestData.sources.gdelt;
-      if (protestCount > 0) dataFreshness.recordUpdate('acled', protestCount);
-      if (protestData.sources.gdelt > 0) dataFreshness.recordUpdate('gdelt', protestData.sources.gdelt);
-      (this.panels['cii'] as CIIPanel)?.refresh();
-      const status = getProtestStatus();
-      this.statusPanel?.updateFeed('Protests', {
-        status: 'ok',
-        itemCount: protestData.events.length,
-        errorMessage: status.acledConfigured === false ? 'ACLED not configured - using GDELT only' : undefined,
-      });
-      if (status.acledConfigured === true) {
-        this.statusPanel?.updateApi('ACLED', { status: 'ok' });
-      } else if (status.acledConfigured === null) {
-        this.statusPanel?.updateApi('ACLED', { status: 'warning' });
-      }
-      this.statusPanel?.updateApi('GDELT', { status: 'ok' });
-    } catch (error) {
-      this.map?.setLayerReady('protests', false);
-      this.statusPanel?.updateFeed('Protests', { status: 'error', errorMessage: String(error) });
-      this.statusPanel?.updateApi('ACLED', { status: 'error' });
-      this.statusPanel?.updateApi('GDELT', { status: 'error' });
-    }
-  }
+
+
 
   private async loadFlightDelays(): Promise<void> {
     try {
@@ -3596,95 +3360,7 @@ export class App {
     }
   }
 
-  private async loadMilitary(): Promise<void> {
-    // Use cached data if available (from loadIntelligenceSignals)
-    if (this.intelligenceCache.military) {
-      const { flights, flightClusters, vessels, vesselClusters } = this.intelligenceCache.military;
-      this.map?.setMilitaryFlights(flights, flightClusters);
-      this.map?.setMilitaryVessels(vessels, vesselClusters);
-      this.map?.updateMilitaryForEscalation(flights, vessels);
-      // Fetch cached postures for banner (posture panel fetches its own data)
-      this.loadCachedPosturesForBanner();
-      const insightsPanel = this.panels['insights'] as InsightsPanel | undefined;
-      insightsPanel?.setMilitaryFlights(flights);
-      const hasData = flights.length > 0 || vessels.length > 0;
-      this.map?.setLayerReady('military', hasData);
-      const militaryCount = flights.length + vessels.length;
-      this.statusPanel?.updateFeed('Military', {
-        status: militaryCount > 0 ? 'ok' : 'warning',
-        itemCount: militaryCount,
-        errorMessage: militaryCount === 0 ? 'No military activity in view' : undefined,
-      });
-      this.statusPanel?.updateApi('OpenSky', { status: 'ok' });
-      return;
-    }
-    try {
-      if (isMilitaryVesselTrackingConfigured()) {
-        initMilitaryVesselStream();
-      }
-      const [flightData, vesselData] = await Promise.all([
-        fetchMilitaryFlights(),
-        fetchMilitaryVessels(),
-      ]);
-      this.intelligenceCache.military = {
-        flights: flightData.flights,
-        flightClusters: flightData.clusters,
-        vessels: vesselData.vessels,
-        vesselClusters: vesselData.clusters,
-      };
-      this.map?.setMilitaryFlights(flightData.flights, flightData.clusters);
-      this.map?.setMilitaryVessels(vesselData.vessels, vesselData.clusters);
-      ingestFlights(flightData.flights);
-      ingestVessels(vesselData.vessels);
-      ingestMilitaryForCII(flightData.flights, vesselData.vessels);
-      signalAggregator.ingestFlights(flightData.flights);
-      signalAggregator.ingestVessels(vesselData.vessels);
-      // Temporal baseline: report counts from standalone military load
-      updateAndCheck([
-        { type: 'military_flights', region: 'global', count: flightData.flights.length },
-        { type: 'vessels', region: 'global', count: vesselData.vessels.length },
-      ]).then(anomalies => {
-        if (anomalies.length > 0) signalAggregator.ingestTemporalAnomalies(anomalies);
-      }).catch(() => {});
-      this.map?.updateMilitaryForEscalation(flightData.flights, vesselData.vessels);
-      (this.panels['cii'] as CIIPanel)?.refresh();
-      if (!isInLearningMode()) {
-        const surgeAlerts = analyzeFlightsForSurge(flightData.flights);
-        if (surgeAlerts.length > 0) {
-          const surgeSignals = surgeAlerts.map(surgeAlertToSignal);
-          addToSignalHistory(surgeSignals);
-          this.signalModal?.show(surgeSignals);
-        }
-        const foreignAlerts = detectForeignMilitaryPresence(flightData.flights);
-        if (foreignAlerts.length > 0) {
-          const foreignSignals = foreignAlerts.map(foreignPresenceToSignal);
-          addToSignalHistory(foreignSignals);
-          this.signalModal?.show(foreignSignals);
-        }
-      }
 
-      // Fetch cached postures for banner (posture panel fetches its own data)
-      this.loadCachedPosturesForBanner();
-      const insightsPanel = this.panels['insights'] as InsightsPanel | undefined;
-      insightsPanel?.setMilitaryFlights(flightData.flights);
-
-      const hasData = flightData.flights.length > 0 || vesselData.vessels.length > 0;
-      this.map?.setLayerReady('military', hasData);
-      const militaryCount = flightData.flights.length + vesselData.vessels.length;
-      this.statusPanel?.updateFeed('Military', {
-        status: militaryCount > 0 ? 'ok' : 'warning',
-        itemCount: militaryCount,
-        errorMessage: militaryCount === 0 ? 'No military activity in view' : undefined,
-      });
-      this.statusPanel?.updateApi('OpenSky', { status: 'ok' });
-      dataFreshness.recordUpdate('opensky', flightData.flights.length);
-    } catch (error) {
-      this.map?.setLayerReady('military', false);
-      this.statusPanel?.updateFeed('Military', { status: 'error', errorMessage: String(error) });
-      this.statusPanel?.updateApi('OpenSky', { status: 'error' });
-      dataFreshness.recordError('opensky', String(error));
-    }
-  }
 
   /**
    * Load cached theater postures for banner display

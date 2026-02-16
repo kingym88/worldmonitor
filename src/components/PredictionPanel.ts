@@ -6,15 +6,14 @@ export class PredictionPanel extends Panel {
   constructor() {
     super({
       id: 'polymarket',
-      title: 'Prediction Markets',
-      infoTooltip: `<strong>Prediction Markets</strong>
-        Real-money forecasting markets:
+      title: 'SOCIAL BUZZ LEADERBOARD',
+      infoTooltip: `<strong>Methodology</strong>
+        <p>Ranking of top trending travel destinations and events based on social media velocity:</p>
         <ul>
-          <li>Prices reflect crowd probability estimates</li>
-          <li>Higher volume = more reliable signal</li>
-          <li>Geopolitical and current events focus</li>
-        </ul>
-        Source: Polymarket (polymarket.com)`,
+          <li>Viral trends</li>
+          <li>Booking spikes</li>
+          <li>Search volume shifts</li>
+        </ul>`,
     });
   }
 

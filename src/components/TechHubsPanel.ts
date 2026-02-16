@@ -64,16 +64,16 @@ export class TechHubsPanel extends Panel {
   constructor() {
     super({
       id: 'tech-hubs',
-      title: 'Hot Tech Hubs',
+      title: 'TRENDING DESTINATIONS',
       showCount: true,
       infoTooltip: `
-        <strong>Tech Hub Activity</strong><br>
-        Shows tech hubs with the most news activity.<br><br>
+        <strong>Travel Buzz Score</strong><br>
+        Shows destinations with the most news & social activity.<br><br>
         <em>Activity levels:</em><br>
-        • <span style="color: #00ff88">High</span> — Breaking news or 50+ score<br>
-        • <span style="color: #ffc800">Elevated</span> — Score 20-49<br>
-        • <span style="color: #888">Low</span> — Score below 20<br><br>
-        Click a hub to zoom to its location.
+        • <span style="color: #00ff88">High</span> — Viral / Breaking News<br>
+        • <span style="color: #ffc800">Elevated</span> — Rising Popularity<br>
+        • <span style="color: #888">Low</span> — Standard Volume<br><br>
+        Click a destination to zoom to its location.
       `,
     });
   }

@@ -26,14 +26,14 @@ export class InsightsPanel extends Panel {
   constructor() {
     super({
       id: 'insights',
-      title: 'AI INSIGHTS',
+      title: 'TRAVEL INSIGHTS',
       showCount: false,
       infoTooltip: `
-        <strong>AI-Powered Analysis</strong><br>
-        • <strong>World Brief</strong>: AI summary (Groq/OpenRouter)<br>
+        <strong>AI-Powered Travel Intelligence</strong><br>
+        • <strong>Travel Brief</strong>: AI summary of key travel events<br>
         • <strong>Sentiment</strong>: News tone analysis<br>
         • <strong>Velocity</strong>: Fast-moving stories<br>
-        • <strong>Focal Points</strong>: Correlates news entities with map signals (military, protests, outages)<br>
+        • <strong>Travel Hotspots</strong>: Correlates news with travel disruptions/events<br>
         <em>Desktop only • Powered by Llama 3.3 + Focal Point Detection</em>
       `,
     });
@@ -84,32 +84,31 @@ export class InsightsPanel extends Panel {
     this.lastBriefUpdate = entry.updatedAt;
     return true;
   }
-  // High-priority military/conflict keywords (huge boost)
-  private static readonly MILITARY_KEYWORDS = [
-    'war', 'armada', 'invasion', 'airstrike', 'strike', 'missile', 'troops',
-    'deployed', 'offensive', 'artillery', 'bomb', 'combat', 'fleet', 'warship',
-    'carrier', 'navy', 'airforce', 'deployment', 'mobilization', 'attack',
+  // Travel Disruption keywords (High Priority)
+  private static readonly DISRUPTION_KEYWORDS = [
+    'cancelled', 'cancellation', 'delayed', 'grounded', 'closed', 'closure',
+    'shutdown', 'suspended', 'halted', 'ban', 'restriction', 'visa', 'border',
+    'strike', 'walkout', 'stoppage', 'union', 'pilot', 'crew',
   ];
 
-  // Violence/casualty keywords (huge boost - human cost stories)
-  private static readonly VIOLENCE_KEYWORDS = [
-    'killed', 'dead', 'death', 'shot', 'blood', 'massacre', 'slaughter',
-    'fatalities', 'casualties', 'wounded', 'injured', 'murdered', 'execution',
-    'crackdown', 'violent', 'clashes', 'gunfire', 'shooting',
+  // Safety & Security keywords (High Priority - Human Impact)
+  private static readonly SAFETY_KEYWORDS = [
+    'attack', 'violence', 'shooting', 'crime', 'robbery', 'kidnap', 'terrorism',
+    'terror', 'bomb', 'danger', 'warning', 'advisory', 'alert', 'unsafe',
+    'riot', 'protest', 'unrest', 'demonstration', 'clashes',
   ];
 
-  // Civil unrest keywords (high boost)
-  private static readonly UNREST_KEYWORDS = [
-    'protest', 'protests', 'uprising', 'revolt', 'revolution', 'riot', 'riots',
-    'demonstration', 'unrest', 'dissent', 'rebellion', 'insurgent', 'overthrow',
-    'coup', 'martial law', 'curfew', 'shutdown', 'blackout',
+  // Environmental & Health keywords (Medium-High Priority)
+  private static readonly ENV_HEALTH_KEYWORDS = [
+    'storm', 'hurricane', 'typhoon', 'cyclone', 'flood', 'flooding', 'earthquake',
+    'volcano', 'eruption', 'ash', 'fire', 'wildfire', 'heatwave', 'pollution',
+    'smog', 'outbreak', 'virus', 'disease', 'quarantine', 'infection',
   ];
 
-  // Geopolitical flashpoints (major boost)
-  private static readonly FLASHPOINT_KEYWORDS = [
-    'iran', 'tehran', 'russia', 'moscow', 'china', 'beijing', 'taiwan', 'ukraine', 'kyiv',
-    'north korea', 'pyongyang', 'israel', 'gaza', 'west bank', 'syria', 'damascus',
-    'yemen', 'hezbollah', 'hamas', 'kremlin', 'pentagon', 'nato', 'wagner',
+  // Travel Context keywords (Context Boost)
+  private static readonly TRAVEL_CONTEXT_KEYWORDS = [
+    'airport', 'airline', 'flight', 'plane', 'hotel', 'resort', 'cruise', 'ship',
+    'tourist', 'tourism', 'travel', 'passenger', 'vacation', 'holiday',
   ];
 
   // Crisis keywords (moderate boost)
@@ -132,35 +131,34 @@ export class InsightsPanel extends Panel {
     // Source confirmation (base signal)
     score += cluster.sourceCount * 10;
 
-    // Violence/casualty keywords: highest priority (+100 base, +25 per match)
-    // "Pools of blood" type stories should always surface
-    const violenceMatches = InsightsPanel.VIOLENCE_KEYWORDS.filter(kw => titleLower.includes(kw));
-    if (violenceMatches.length > 0) {
-      score += 100 + (violenceMatches.length * 25);
+    // Disruption keywords: highest priority (+100 base, +25 per match)
+    const disruptionMatches = InsightsPanel.DISRUPTION_KEYWORDS.filter(kw => titleLower.includes(kw));
+    if (disruptionMatches.length > 0) {
+      score += 100 + (disruptionMatches.length * 25);
     }
 
-    // Military keywords: highest priority (+80 base, +20 per match)
-    const militaryMatches = InsightsPanel.MILITARY_KEYWORDS.filter(kw => titleLower.includes(kw));
-    if (militaryMatches.length > 0) {
-      score += 80 + (militaryMatches.length * 20);
+    // Safety keywords: high priority (+80 base, +20 per match)
+    const safetyMatches = InsightsPanel.SAFETY_KEYWORDS.filter(kw => titleLower.includes(kw));
+    if (safetyMatches.length > 0) {
+      score += 80 + (safetyMatches.length * 20);
     }
 
-    // Civil unrest: high priority (+70 base, +18 per match)
-    const unrestMatches = InsightsPanel.UNREST_KEYWORDS.filter(kw => titleLower.includes(kw));
-    if (unrestMatches.length > 0) {
-      score += 70 + (unrestMatches.length * 18);
+    // Env/Health keywords: medium-high priority (+70 base, +18 per match)
+    const envMatches = InsightsPanel.ENV_HEALTH_KEYWORDS.filter(kw => titleLower.includes(kw));
+    if (envMatches.length > 0) {
+      score += 70 + (envMatches.length * 18);
     }
 
-    // Flashpoint keywords: high priority (+60 base, +15 per match)
-    const flashpointMatches = InsightsPanel.FLASHPOINT_KEYWORDS.filter(kw => titleLower.includes(kw));
-    if (flashpointMatches.length > 0) {
-      score += 60 + (flashpointMatches.length * 15);
+    // Travel Context: boost (+40 base, +10 match)
+    const contextMatches = InsightsPanel.TRAVEL_CONTEXT_KEYWORDS.filter(kw => titleLower.includes(kw));
+    if (contextMatches.length > 0) {
+      score += 40 + (contextMatches.length * 10);
     }
 
-    // COMBO BONUS: Violence/unrest + flashpoint location = critical story
-    // e.g., "Iran protests" + "blood" = huge boost
-    if ((violenceMatches.length > 0 || unrestMatches.length > 0) && flashpointMatches.length > 0) {
-      score *= 1.5; // 50% bonus for flashpoint unrest
+    // COMBO BONUS: Disruption/Safety/Env + Travel Context = critical travel story
+    // e.g., "Airport strike" or "Hotel fire"
+    if ((disruptionMatches.length > 0 || safetyMatches.length > 0 || envMatches.length > 0) && contextMatches.length > 0) {
+      score *= 1.5; // 50% bonus for direct travel impact
     }
 
     // Crisis keywords: moderate priority (+30 base, +10 per match)
@@ -412,7 +410,7 @@ export class InsightsPanel extends Panel {
   private renderWorldBrief(brief: string): string {
     return `
       <div class="insights-brief">
-        <div class="insights-section-title">${SITE_VARIANT === 'tech' ? '🚀 TECH BRIEF' : '🌍 WORLD BRIEF'}</div>
+        <div class="insights-section-title">🌍 TRAVEL BRIEF</div>
         <div class="insights-brief-text">${escapeHtml(brief)}</div>
       </div>
     `;
@@ -583,7 +581,7 @@ export class InsightsPanel extends Panel {
 
     return `
       <div class="insights-section insights-convergence">
-        <div class="insights-section-title">📍 GEOGRAPHIC CONVERGENCE</div>
+        <div class="insights-section-title">📍 IMPACT ZONES</div>
         ${zonesHtml}
       </div>
     `;
@@ -631,7 +629,7 @@ export class InsightsPanel extends Panel {
 
     return `
       <div class="insights-section insights-focal">
-        <div class="insights-section-title">🎯 FOCAL POINTS</div>
+        <div class="insights-section-title">🎯 TRAVEL HOTSPOTS</div>
         ${focalPointsHtml}
       </div>
     `;

@@ -8,45 +8,46 @@ import { SITE_VARIANT } from './variant';
 // Desired order: live-news, AI Insights, AI Strategic Posture, cii, strategic-risk, then rest
 const FULL_PANELS: Record<string, PanelConfig> = {
   map: { name: 'Global Map', enabled: true, priority: 1 },
-  'live-news': { name: 'Live News', enabled: true, priority: 1 },
-  insights: { name: 'AI Insights', enabled: true, priority: 1 },
-  'strategic-posture': { name: 'AI Strategic Posture', enabled: true, priority: 1 },
-  cii: { name: 'Country Instability', enabled: true, priority: 1 },
+  'live-news': { name: 'Destination Webcams', enabled: true, priority: 1 },
+  insights: { name: 'Travel Insights', enabled: true, priority: 1 },
+  'strategic-posture': { name: 'Regional Travel Sentiment', enabled: true, priority: 1 },
+  cii: { name: 'Destination Demand Index', enabled: true, priority: 1 },
   'strategic-risk': { name: 'Strategic Risk Overview', enabled: true, priority: 1 },
+  'expedia-monitor': { name: 'Expedia Social Pulse', enabled: true, priority: 1 },
   intel: { name: 'Intel Feed', enabled: true, priority: 1 },
   'gdelt-intel': { name: 'Live Intelligence', enabled: true, priority: 1 },
   cascade: { name: 'Infrastructure Cascade', enabled: true, priority: 1 },
-  politics: { name: 'World News', enabled: true, priority: 1 },
+  politics: { name: 'Travel & Tourism News', enabled: true, priority: 1 },
   middleeast: { name: 'Middle East', enabled: true, priority: 1 },
   africa: { name: 'Africa', enabled: true, priority: 1 },
   latam: { name: 'Latin America', enabled: true, priority: 1 },
   asia: { name: 'Asia-Pacific', enabled: true, priority: 1 },
-  energy: { name: 'Energy & Resources', enabled: true, priority: 1 },
+  energy: { name: 'Fuel Price Tracker', enabled: true, priority: 1 },
   gov: { name: 'Government', enabled: true, priority: 1 },
   thinktanks: { name: 'Think Tanks', enabled: true, priority: 1 },
-  polymarket: { name: 'Predictions', enabled: true, priority: 1 },
-  commodities: { name: 'Commodities', enabled: true, priority: 1 },
-  markets: { name: 'Markets', enabled: true, priority: 1 },
-  economic: { name: 'Economic Indicators', enabled: true, priority: 1 },
+  polymarket: { name: 'Social Buzz Leaderboard', enabled: true, priority: 1 },
+  commodities: { name: 'Fuel & Currency', enabled: true, priority: 1 },
+  markets: { name: 'Travel & Hospitality Stocks', enabled: true, priority: 1 },
+  economic: { name: 'Travel Macro Indicators', enabled: true, priority: 1 },
   finance: { name: 'Financial', enabled: true, priority: 1 },
   tech: { name: 'Technology', enabled: true, priority: 2 },
-  crypto: { name: 'Crypto', enabled: true, priority: 2 },
-  heatmap: { name: 'Sector Heatmap', enabled: true, priority: 2 },
+  crypto: { name: 'Travel Payment Trends', enabled: true, priority: 2 },
+  heatmap: { name: 'Travel Heatmap', enabled: true, priority: 2 },
   ai: { name: 'AI/ML', enabled: true, priority: 2 },
   layoffs: { name: 'Layoffs Tracker', enabled: true, priority: 2 },
   monitors: { name: 'My Monitors', enabled: true, priority: 2 },
   'satellite-fires': { name: 'Fires', enabled: true, priority: 2 },
-  'macro-signals': { name: 'Market Radar', enabled: true, priority: 2 },
-  'etf-flows': { name: 'BTC ETF Tracker', enabled: true, priority: 2 },
-  stablecoins: { name: 'Stablecoins', enabled: true, priority: 2 },
-  'ucdp-events': { name: 'UCDP Conflict Events', enabled: false, priority: 2 },
-  displacement: { name: 'UNHCR Displacement', enabled: false, priority: 2 },
-  climate: { name: 'Climate Anomalies', enabled: false, priority: 2 },
-  'population-exposure': { name: 'Population Exposure', enabled: false, priority: 2 },
+  'macro-signals': { name: 'Travel Demand Signals', enabled: true, priority: 2 },
+  'etf-flows': { name: 'Travel Sector ETF Flows', enabled: true, priority: 2 },
+  stablecoins: { name: 'Crypto Travel Payments', enabled: true, priority: 2 },
+  'ucdp-events': { name: 'Major Incidents Affecting Travel', enabled: false, priority: 2 },
+  displacement: { name: 'Tourism Flows', enabled: false, priority: 2 },
+  climate: { name: 'Seasonal Weather for Destinations', enabled: false, priority: 2 },
+  'population-exposure': { name: 'Destination Capacity & Crowding', enabled: false, priority: 2 },
 };
 
 const FULL_MAP_LAYERS: MapLayers = {
-  conflicts: true,
+  safety: true,
   bases: true,
   cables: false,
   pipelines: false,
@@ -61,7 +62,8 @@ const FULL_MAP_LAYERS: MapLayers = {
   outages: true,
   cyberThreats: false,
   datacenters: false,
-  protests: false,
+  events: true,
+
   flights: false,
   military: true,
   natural: true,
@@ -81,7 +83,7 @@ const FULL_MAP_LAYERS: MapLayers = {
 };
 
 const FULL_MOBILE_MAP_LAYERS: MapLayers = {
-  conflicts: true,
+  safety: true,
   bases: false,
   cables: false,
   pipelines: false,
@@ -96,7 +98,8 @@ const FULL_MOBILE_MAP_LAYERS: MapLayers = {
   outages: true,
   cyberThreats: false,
   datacenters: false,
-  protests: false,
+  events: true,
+
   flights: false,
   military: false,
   natural: true,
@@ -155,7 +158,7 @@ const TECH_PANELS: Record<string, PanelConfig> = {
 };
 
 const TECH_MAP_LAYERS: MapLayers = {
-  conflicts: false,
+  safety: false,
   bases: false,
   cables: true,
   pipelines: false,
@@ -170,7 +173,8 @@ const TECH_MAP_LAYERS: MapLayers = {
   outages: true,
   cyberThreats: false,
   datacenters: true,
-  protests: false,
+  events: false,
+
   flights: false,
   military: false,
   natural: true,
@@ -190,7 +194,7 @@ const TECH_MAP_LAYERS: MapLayers = {
 };
 
 const TECH_MOBILE_MAP_LAYERS: MapLayers = {
-  conflicts: false,
+  safety: false,
   bases: false,
   cables: false,
   pipelines: false,
@@ -205,7 +209,8 @@ const TECH_MOBILE_MAP_LAYERS: MapLayers = {
   outages: true,
   cyberThreats: false,
   datacenters: true,
-  protests: false,
+  events: false,
+
   flights: false,
   military: false,
   natural: true,

@@ -162,7 +162,7 @@ export class CountryBriefPage {
 
   private signalChips(signals: CountryBriefSignals): string {
     const chips: string[] = [];
-    if (signals.protests > 0) chips.push(`<span class="signal-chip protest">📢 ${signals.protests} protests</span>`);
+    if (signals.events > 0) chips.push(`<span class="signal-chip protest">🎉 ${signals.events} events</span>`);
     if (signals.militaryFlights > 0) chips.push(`<span class="signal-chip military">✈️ ${signals.militaryFlights} mil. aircraft</span>`);
     if (signals.militaryVessels > 0) chips.push(`<span class="signal-chip military">⚓ ${signals.militaryVessels} mil. vessels</span>`);
     if (signals.outages > 0) chips.push(`<span class="signal-chip outage">🌐 ${signals.outages} outages</span>`);
@@ -582,7 +582,7 @@ export class CountryBriefPage {
     }
     if (this.currentSignals) {
       data.signals = {
-        protests: this.currentSignals.protests,
+        events: this.currentSignals.events,
         militaryFlights: this.currentSignals.militaryFlights,
         militaryVessels: this.currentSignals.militaryVessels,
         outages: this.currentSignals.outages,

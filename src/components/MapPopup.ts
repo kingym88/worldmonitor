@@ -1,6 +1,8 @@
 import type { ConflictZone, Hotspot, Earthquake, NewsItem, MilitaryBase, StrategicWaterway, APTGroup, NuclearFacility, EconomicCenter, GammaIrradiator, Pipeline, UnderseaCable, CableAdvisory, RepairShip, InternetOutage, AIDataCenter, AisDisruptionEvent, SocialUnrestEvent, AirportDelayAlert, MilitaryFlight, MilitaryVessel, MilitaryFlightCluster, MilitaryVesselCluster, NaturalEvent, Port, Spaceport, CriticalMineralProject, CyberThreat } from '@/types';
 import type { WeatherAlert } from '@/services/weather';
 import { UNDERSEA_CABLES } from '@/config';
+import type { TravelInfrastructure } from '@/config/travel-infrastructure';
+import type { TravelEvent } from '@/config/events';
 import type { StartupHub, Accelerator, TechHQ, CloudRegion } from '@/config/tech-geo';
 import type { TechHubActivity } from '@/services/tech-activity';
 import type { GeoHubActivity } from '@/services/geo-activity';
@@ -10,7 +12,7 @@ import { fetchHotspotContext, formatArticleDate, extractDomain, type GdeltArticl
 import { getNaturalEventIcon } from '@/services/eonet';
 import { getHotspotEscalation, getEscalationChange24h } from '@/services/hotspot-escalation';
 
-export type PopupType = 'conflict' | 'hotspot' | 'earthquake' | 'weather' | 'base' | 'waterway' | 'apt' | 'cyberThreat' | 'nuclear' | 'economic' | 'irradiator' | 'pipeline' | 'cable' | 'cable-advisory' | 'repair-ship' | 'outage' | 'datacenter' | 'datacenterCluster' | 'ais' | 'protest' | 'protestCluster' | 'flight' | 'militaryFlight' | 'militaryVessel' | 'militaryFlightCluster' | 'militaryVesselCluster' | 'natEvent' | 'port' | 'spaceport' | 'mineral' | 'startupHub' | 'cloudRegion' | 'techHQ' | 'accelerator' | 'techEvent' | 'techHQCluster' | 'techEventCluster' | 'techActivity' | 'geoActivity';
+export type PopupType = 'conflict' | 'hotspot' | 'earthquake' | 'weather' | 'base' | 'infrastructure' | 'waterway' | 'apt' | 'cyberThreat' | 'nuclear' | 'economic' | 'irradiator' | 'pipeline' | 'cable' | 'cable-advisory' | 'repair-ship' | 'outage' | 'datacenter' | 'datacenterCluster' | 'ais' | 'event' | 'protestCluster' | 'flight' | 'militaryFlight' | 'militaryVessel' | 'militaryFlightCluster' | 'militaryVesselCluster' | 'natEvent' | 'port' | 'spaceport' | 'mineral' | 'startupHub' | 'cloudRegion' | 'techHQ' | 'accelerator' | 'techEvent' | 'techHQCluster' | 'techEventCluster' | 'techActivity' | 'geoActivity';
 
 interface TechEventPopupData {
   id: string;
@@ -70,7 +72,7 @@ interface DatacenterClusterData {
 
 interface PopupData {
   type: PopupType;
-  data: ConflictZone | Hotspot | Earthquake | WeatherAlert | MilitaryBase | StrategicWaterway | APTGroup | CyberThreat | NuclearFacility | EconomicCenter | GammaIrradiator | Pipeline | UnderseaCable | CableAdvisory | RepairShip | InternetOutage | AIDataCenter | AisDisruptionEvent | SocialUnrestEvent | AirportDelayAlert | MilitaryFlight | MilitaryVessel | MilitaryFlightCluster | MilitaryVesselCluster | NaturalEvent | Port | Spaceport | CriticalMineralProject | StartupHub | CloudRegion | TechHQ | Accelerator | TechEventPopupData | TechHQClusterData | TechEventClusterData | ProtestClusterData | DatacenterClusterData | TechHubActivity | GeoHubActivity;
+  data: ConflictZone | Hotspot | Earthquake | WeatherAlert | MilitaryBase | TravelInfrastructure | TravelEvent | StrategicWaterway | APTGroup | CyberThreat | NuclearFacility | EconomicCenter | GammaIrradiator | Pipeline | UnderseaCable | CableAdvisory | RepairShip | InternetOutage | AIDataCenter | AisDisruptionEvent | SocialUnrestEvent | AirportDelayAlert | MilitaryFlight | MilitaryVessel | MilitaryFlightCluster | MilitaryVesselCluster | NaturalEvent | Port | Spaceport | CriticalMineralProject | StartupHub | CloudRegion | TechHQ | Accelerator | TechEventPopupData | TechHQClusterData | TechEventClusterData | ProtestClusterData | DatacenterClusterData | TechHubActivity | GeoHubActivity;
   relatedNews?: NewsItem[];
   x: number;
   y: number;
@@ -203,6 +205,8 @@ export class MapPopup {
         return this.renderWeatherPopup(data.data as WeatherAlert);
       case 'base':
         return this.renderBasePopup(data.data as MilitaryBase);
+      case 'infrastructure':
+        return this.renderInfrastructurePopup(data.data as TravelInfrastructure);
       case 'waterway':
         return this.renderWaterwayPopup(data.data as StrategicWaterway);
       case 'apt':
@@ -231,8 +235,8 @@ export class MapPopup {
         return this.renderDatacenterClusterPopup(data.data as DatacenterClusterData);
       case 'ais':
         return this.renderAisPopup(data.data as AisDisruptionEvent);
-      case 'protest':
-        return this.renderProtestPopup(data.data as SocialUnrestEvent);
+      case 'event':
+        return this.renderEventPopup(data.data as TravelEvent);
       case 'protestCluster':
         return this.renderProtestClusterPopup(data.data as ProtestClusterData);
       case 'flight':
@@ -659,6 +663,37 @@ export class MapPopup {
     `;
   }
 
+  private renderInfrastructurePopup(infra: TravelInfrastructure): string {
+    const typeLabels: Record<string, string> = {
+      airport: 'AIRPORT',
+      hotel: 'HOTEL',
+      train: 'TRAIN STATION',
+    };
+    const icons: Record<string, string> = { airport: '✈️', hotel: '🏨', train: '🚆' };
+
+    return `
+      <div class="popup-header infrastructure ${infra.type}">
+        <span class="popup-icon">${icons[infra.type] || '📍'}</span>
+        <span class="popup-title">${escapeHtml(infra.name.toUpperCase())}</span>
+        <span class="popup-badge ${infra.status === 'active' ? 'low' : 'medium'}">${infra.status.toUpperCase()}</span>
+        <button class="popup-close">×</button>
+      </div>
+      <div class="popup-body">
+        ${infra.description ? `<p class="popup-description">${escapeHtml(infra.description)}</p>` : ''}
+        <div class="popup-stats">
+          <div class="popup-stat">
+            <span class="stat-label">TYPE</span>
+            <span class="stat-value">${typeLabels[infra.type] || infra.type.toUpperCase()}</span>
+          </div>
+          <div class="popup-stat">
+            <span class="stat-label">COORDINATES</span>
+            <span class="stat-value">${infra.lat.toFixed(2)}°, ${infra.lon.toFixed(2)}°</span>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
   private renderWaterwayPopup(waterway: StrategicWaterway): string {
     return `
       <div class="popup-header waterway">
@@ -719,51 +754,32 @@ export class MapPopup {
     `;
   }
 
-  private renderProtestPopup(event: SocialUnrestEvent): string {
-    const severityClass = escapeHtml(event.severity);
-    const severityLabel = escapeHtml(event.severity.toUpperCase());
-    const eventTypeLabel = escapeHtml(event.eventType.replace('_', ' ').toUpperCase());
-    const icon = event.eventType === 'riot' ? '🔥' : event.eventType === 'strike' ? '✊' : '📢';
-    const sourceLabel = event.sourceType === 'acled' ? 'ACLED (verified)' : 'GDELT';
-    const validatedBadge = event.validated ? '<span class="popup-badge verified">VERIFIED</span>' : '';
-    const fatalitiesSection = event.fatalities
-      ? `<div class="popup-stat"><span class="stat-label">FATALITIES</span><span class="stat-value alert">${event.fatalities}</span></div>`
-      : '';
-    const actorsSection = event.actors?.length
-      ? `<div class="popup-stat"><span class="stat-label">ACTORS</span><span class="stat-value">${event.actors.map(a => escapeHtml(a)).join(', ')}</span></div>`
-      : '';
-    const tagsSection = event.tags?.length
-      ? `<div class="popup-tags">${event.tags.map(t => `<span class="popup-tag">${escapeHtml(t)}</span>`).join('')}</div>`
-      : '';
-    const relatedHotspots = event.relatedHotspots?.length
-      ? `<div class="popup-related">Near: ${event.relatedHotspots.map(h => escapeHtml(h)).join(', ')}</div>`
-      : '';
-
+  private renderEventPopup(event: TravelEvent): string {
+    const icons: Record<string, string> = { festival: '🎪', concert: '🎵', sports: '⚽', cultural: '🎭' };
     return `
-      <div class="popup-header protest ${severityClass}">
-        <span class="popup-icon">${icon}</span>
-        <span class="popup-title">${eventTypeLabel}</span>
-        <span class="popup-badge ${severityClass}">${severityLabel}</span>
-        ${validatedBadge}
+      <div class="popup-header event ${event.type}">
+        <span class="popup-icon">${icons[event.type] || '📅'}</span>
+        <span class="popup-title">${escapeHtml(event.name.toUpperCase())}</span>
+        <span class="popup-badge ${event.status}">${event.status.toUpperCase()}</span>
         <button class="popup-close">×</button>
       </div>
       <div class="popup-body">
-        <div class="popup-subtitle">${event.city ? `${escapeHtml(event.city)}, ` : ''}${escapeHtml(event.country)}</div>
+        ${event.description ? `<p class="popup-description">${escapeHtml(event.description)}</p>` : ''}
         <div class="popup-stats">
           <div class="popup-stat">
-            <span class="stat-label">TIME</span>
-            <span class="stat-value">${event.time.toLocaleDateString()}</span>
+            <span class="stat-label">TYPE</span>
+            <span class="stat-value">${event.type.toUpperCase()}</span>
           </div>
           <div class="popup-stat">
-            <span class="stat-label">SOURCE</span>
-            <span class="stat-value">${sourceLabel}</span>
+            <span class="stat-label">DATE</span>
+            <span class="stat-value">${event.date}</span>
           </div>
-          ${fatalitiesSection}
-          ${actorsSection}
+          ${event.attendees ? `
+          <div class="popup-stat">
+            <span class="stat-label">ATTENDEES</span>
+            <span class="stat-value">${event.attendees.toLocaleString()}</span>
+          </div>` : ''}
         </div>
-        ${event.title ? `<p class="popup-description">${escapeHtml(event.title)}</p>` : ''}
-        ${tagsSection}
-        ${relatedHotspots}
       </div>
     `;
   }

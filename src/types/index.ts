@@ -512,38 +512,38 @@ export interface PanelConfig {
 }
 
 export interface MapLayers {
-  conflicts: boolean;
-  bases: boolean;
-  cables: boolean;
-  pipelines: boolean;
-  hotspots: boolean;
-  ais: boolean;
-  nuclear: boolean;
-  irradiators: boolean;
-  sanctions: boolean;
-  weather: boolean;
-  economic: boolean;
-  waterways: boolean;
-  outages: boolean;
-  cyberThreats: boolean;
-  datacenters: boolean;
-  protests: boolean;
-  flights: boolean;
-  military: boolean;
-  natural: boolean;
-  spaceports: boolean;
+  safety: boolean;      // Travel safety/advisories (was conflicts)
+  bases: boolean;       // Military bases -> Travel Infrastructure (airports/hotels)
+  nuclear: boolean;     // Nuclear facilities -> Travel Infrastructure
+  events: boolean;      // Events & Festivals (was protests)
+  sanctions: boolean;   // Sanctions -> Visa Requirements (maybe?)
+  hotspots: boolean;    // Hotspots -> Trending Destinations
+  cables: boolean;      // Undersea cables -> Flight Routes
+  pipelines: boolean;   // Pipelines -> Train Routes?
+  outages: boolean;     // Internet outages -> Travel Disruptions
+  datacenters: boolean; // AI Datacenters -> Digital Nomad Hubs
+  ais: boolean;         // Ship tracking -> Cruise Ships
+  flights: boolean;     // Aircraft -> Commercial Flights
+  military: boolean;    // Military tracking
+  natural: boolean;     // Natural disasters -> Natural Hazards
+  weather: boolean;     // Weather
+  economic: boolean;    // Economic centers -> Tourism Stats
+  waterways: boolean;   // Strategic waterways -> Labels?
+  irradiators: boolean; // Gamma irradiators (remove?)
+  spaceports: boolean;  // Spaceports (remove?)
+  // Tech variant specific
+  startupHubs?: boolean;
+  cloudRegions?: boolean;
+  techHQs?: boolean;
+  accelerators?: boolean;
+  techEvents?: boolean;
   minerals: boolean;
   fires: boolean;
   // Data source layers
   ucdpEvents: boolean;
   displacement: boolean;
   climate: boolean;
-  // Tech variant layers
-  startupHubs: boolean;
-  cloudRegions: boolean;
-  accelerators: boolean;
-  techHQs: boolean;
-  techEvents: boolean;
+  cyberThreats: boolean;
 }
 
 export interface AIDataCenter {

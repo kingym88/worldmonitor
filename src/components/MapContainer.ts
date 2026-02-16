@@ -29,6 +29,7 @@ import type {
   ClimateAnomaly,
   CyberThreat,
 } from '@/types';
+import { TRAVEL_EVENTS, type TravelEvent } from '@/config';
 import type { WeatherAlert } from '@/services/weather';
 
 export type TimeRange = '1h' | '6h' | '24h' | '48h' | '7d' | 'all';
@@ -216,13 +217,7 @@ export class MapContainer {
     }
   }
 
-  public setProtests(events: SocialUnrestEvent[]): void {
-    if (this.useDeckGL) {
-      this.deckGLMap?.setProtests(events);
-    } else {
-      this.svgMap?.setProtests(events);
-    }
-  }
+
 
   public setFlightDelays(delays: AirportDelayAlert[]): void {
     if (this.useDeckGL) {
@@ -548,5 +543,8 @@ export class MapContainer {
     } else {
       this.svgMap?.destroy();
     }
+  }
+  public getEvents(): TravelEvent[] {
+    return TRAVEL_EVENTS;
   }
 }
