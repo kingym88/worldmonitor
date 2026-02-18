@@ -197,10 +197,12 @@ export function extractEntities(text: string): string[] {
 }
 
 function normalizeEntityType(type: string): string {
+  if (!type) return 'UNKNOWN';
   return type.replace(/^[BI]-/, '').trim().toUpperCase();
 }
 
 function normalizeMLEntityText(text: string): string {
+  if (!text) return '';
   return text
     .replace(/^##/, '')
     .replace(/\s+/g, ' ')

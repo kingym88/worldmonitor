@@ -9,7 +9,7 @@ export class PopulationExposurePanel extends Panel {
   constructor() {
     super({
       id: 'population-exposure',
-      title: 'Population Exposure',
+      title: 'Destination Crowding & Risk',
       showCount: true,
       trackActivity: true,
       infoTooltip: `<strong>Population Exposure Estimates</strong>

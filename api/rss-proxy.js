@@ -162,6 +162,27 @@ const ALLOWED_DOMAINS = [
   'www.imf.org',
   // Additional
   'news.ycombinator.com',
+  // Travel & Hospitality (Added 2026-02-18)
+  'skift.com',
+  'www.phocuswire.com',
+  'www.travelweekly.com',
+  'www.ttgmedia.com',
+  'www.unwto.org',
+  'hub.united.com',
+  'news.delta.com',
+  'news.marriott.com',
+  'news.booking.com',
+  'www.hoteliermiddleeast.com',
+  'www.tourismupdate.co.za',
+  'www.caribbeannewsdigital.com',
+  'www.ttrweekly.com',
+  'www.ttgasia.com',
+  'www.hospitalitynet.org',
+  'www.adweek.com',
+  'thepointsguy.com',
+  'frequentmiler.com',
+  'research.skift.com',
+  'www.iata.org',
 ];
 
 export default async function handler(req) {

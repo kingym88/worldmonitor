@@ -1715,12 +1715,12 @@ export class App {
     const expediaPanel = new ExpediaMonitorPanel();
     this.panels['expedia-monitor'] = expediaPanel;
 
-    const govPanel = new NewsPanel('gov', 'Government / Policy');
+    const govPanel = new NewsPanel('gov', 'Travel Advisories & Policy');
     this.attachRelatedAssetHandlers(govPanel);
     this.newsPanels['gov'] = govPanel;
     this.panels['gov'] = govPanel;
 
-    const socialPanel = new NewsPanel('social', 'Social Media Trends');
+    const socialPanel = new NewsPanel('social', 'Travel Topics & Trends');
     this.attachRelatedAssetHandlers(socialPanel);
     this.newsPanels['social'] = socialPanel;
     this.panels['social'] = socialPanel;
@@ -1829,7 +1829,7 @@ export class App {
     this.newsPanels['ipo'] = ipoPanel;
     this.panels['ipo'] = ipoPanel;
 
-    const thinktanksPanel = new NewsPanel('thinktanks', 'Think Tanks');
+    const thinktanksPanel = new NewsPanel('thinktanks', 'Travel Industry Reports');
     this.attachRelatedAssetHandlers(thinktanksPanel);
     this.newsPanels['thinktanks'] = thinktanksPanel;
     this.panels['thinktanks'] = thinktanksPanel;
@@ -1853,7 +1853,7 @@ export class App {
     this.newsPanels['asia'] = asiaPanel;
     this.panels['asia'] = asiaPanel;
 
-    const energyPanel = new NewsPanel('energy', 'Energy & Resources');
+    const energyPanel = new NewsPanel('energy', 'Aviation Fuel & Energy');
     this.attachRelatedAssetHandlers(energyPanel);
     this.newsPanels['energy'] = energyPanel;
     this.panels['energy'] = energyPanel;
@@ -3505,10 +3505,14 @@ export class App {
   private async loadFirmsData(): Promise<void> {
     try {
       const { regions, totalCount } = await fetchAllFires(1);
-      if (totalCount > 0) {
-        const flat = flattenFires(regions);
-        const stats = computeRegionStats(regions);
+      
+      const flat = flattenFires(regions);
+      const stats = computeRegionStats(regions);
 
+      // Feed panel regardless of count (clears loading state)
+      (this.panels['satellite-fires'] as SatelliteFiresPanel)?.update(stats, totalCount);
+
+      if (totalCount > 0) {
         // Feed signal aggregator
         signalAggregator.ingestSatelliteFires(flat.map(f => ({
           lat: f.lat,
@@ -3521,9 +3525,6 @@ export class App {
 
         // Feed map layer
         this.map?.setFires(flat);
-
-        // Feed panel
-        (this.panels['satellite-fires'] as SatelliteFiresPanel)?.update(stats, totalCount);
 
         dataFreshness.recordUpdate('firms', totalCount);
 

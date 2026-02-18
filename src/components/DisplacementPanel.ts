@@ -13,7 +13,7 @@ export class DisplacementPanel extends Panel {
   constructor() {
     super({
       id: 'displacement',
-      title: 'UNHCR Displacement',
+      title: 'Refugee & Humanitarian Alerts',
       showCount: true,
       trackActivity: true,
       infoTooltip: `<strong>UNHCR Displacement Data</strong>

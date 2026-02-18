@@ -10,7 +10,7 @@ export class UcdpEventsPanel extends Panel {
   constructor() {
     super({
       id: 'ucdp-events',
-      title: 'UCDP Conflict Events',
+      title: 'Conflict Zones & Safety',
       showCount: true,
       trackActivity: true,
       infoTooltip: `<strong>UCDP Georeferenced Events</strong>
