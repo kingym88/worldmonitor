@@ -253,8 +253,9 @@ export class NewsPanel extends Panel {
       this.renderClusters(enriched);
     } catch (error) {
       if (requestId !== this.renderRequestId) return;
-      console.error('[NewsPanel] Failed to cluster news:', error);
-      this.showError('Failed to cluster news');
+      // Gracefully fall back to flat rendering instead of showing an error
+      console.warn('[NewsPanel] Clustering failed, falling back to flat render:', error);
+      this.renderFlat(items);
     }
   }
 

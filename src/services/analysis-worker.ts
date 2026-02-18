@@ -178,11 +178,11 @@ class AnalysisWorkerManager {
     return new Promise((resolve, reject) => {
       const id = this.generateId();
 
-      // Set timeout (30 seconds - clustering can take a while for large datasets)
+      // Set timeout (60 seconds - clustering can take a while for large datasets or when multiple panels queue up)
       const timeout = setTimeout(() => {
         this.pendingRequests.delete(id);
         reject(new Error('Clustering request timed out'));
-      }, 30000);
+      }, 60000);
 
       this.pendingRequests.set(id, {
         resolve: resolve as (value: unknown) => void,

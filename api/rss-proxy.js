@@ -183,6 +183,8 @@ const ALLOWED_DOMAINS = [
   'frequentmiler.com',
   'research.skift.com',
   'www.iata.org',
+  'www.faa.gov',
+  'www.tsa.gov',
 ];
 
 export default async function handler(req) {

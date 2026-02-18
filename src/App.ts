@@ -2722,10 +2722,15 @@ export class App {
       { key: 'latam', feeds: FEEDS.latam },
       { key: 'asia', feeds: FEEDS.asia },
       { key: 'energy', feeds: FEEDS.energy },
+      { key: 'thinktanks', feeds: FEEDS.thinktanks },
+      // Full variant categories (travel dashboard)
+      { key: 'campaigns', feeds: FEEDS.campaigns },
+      { key: 'loyalty', feeds: FEEDS.loyalty },
+      { key: 'research', feeds: FEEDS.research },
+      { key: 'social', feeds: FEEDS.social },
+      // Tech variant categories (also used in full variant when defined)
       { key: 'layoffs', feeds: FEEDS.layoffs },
       { key: 'ai', feeds: FEEDS.ai },
-      { key: 'thinktanks', feeds: FEEDS.thinktanks },
-      // Tech variant categories
       { key: 'startups', feeds: FEEDS.startups },
       { key: 'vcblogs', feeds: FEEDS.vcblogs },
       { key: 'regionalStartups', feeds: FEEDS.regionalStartups },
@@ -2807,10 +2812,10 @@ export class App {
         ? await clusterNewsHybrid(this.allNews)
         : await analysisWorker.clusterNews(this.allNews);
 
-      // Update AI Insights panel with new clusters (if ML available)
-      if (mlWorker.isAvailable && this.latestClusters.length > 0) {
+      // Update AI Insights panel with new clusters (always — panel handles ML-unavailable internally)
+      if (this.latestClusters.length > 0) {
         const insightsPanel = this.panels['insights'] as InsightsPanel | undefined;
-        insightsPanel?.updateInsights(this.latestClusters);
+        void insightsPanel?.updateInsights(this.latestClusters);
       }
 
       // Push geo-located news clusters to map
