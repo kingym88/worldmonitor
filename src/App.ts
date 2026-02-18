@@ -125,6 +125,8 @@ export class App {
   private panels: Record<string, Panel> = {};
   private newsPanels: Record<string, NewsPanel> = {};
   private allNews: NewsItem[] = [];
+  private currentTimeRange: import('@/components/MapContainer').TimeRange = 'all';
+  private categoryNewsCache: Map<string, NewsItem[]> = new Map();
   private monitors: Monitor[];
   private panelSettings: Record<string, PanelConfig>;
   private mapLayers: MapLayers;
@@ -534,8 +536,41 @@ export class App {
         this.loadDataForLayer(layer);
       }
     });
+
+    // Wire time range changes to re-filter news panels
+    this.map?.onTimeRangeChanged((range) => {
+      this.currentTimeRange = range;
+      this.applyTimeFilterToPanels();
+    });
   }
 
+
+  /** Convert a TimeRange string to a ms-since-epoch cutoff (0 = no cutoff) */
+  private getTimeCutoff(range: import('@/components/MapContainer').TimeRange): number {
+    const now = Date.now();
+    const MS: Record<string, number> = {
+      '1h':  1 * 60 * 60 * 1000,
+      '6h':  6 * 60 * 60 * 1000,
+      '24h': 24 * 60 * 60 * 1000,
+      '48h': 48 * 60 * 60 * 1000,
+      '7d':  7 * 24 * 60 * 60 * 1000,
+    };
+    const window = MS[range];
+    return window ? now - window : 0; // 0 means "all time"
+  }
+
+  /** Re-render every news panel using the current time filter */
+  private applyTimeFilterToPanels(): void {
+    const cutoff = this.getTimeCutoff(this.currentTimeRange);
+    for (const [category, items] of this.categoryNewsCache) {
+      const panel = this.newsPanels[category];
+      if (!panel) continue;
+      const filtered = cutoff > 0
+        ? items.filter(item => item.pubDate.getTime() >= cutoff)
+        : items;
+      panel.renderNews(filtered);
+    }
+  }
 
   private setupCountryIntel(): void {
     if (!this.map) return;
@@ -1432,25 +1467,12 @@ export class App {
   private renderLayout(): void {
     this.container.innerHTML = `
       <div class="header">
-        <div class="header-left">
+         <div class="header-left">
           <div class="variant-switcher">
-            <a href="${this.isDesktopApp ? '#' : (SITE_VARIANT === 'tech' ? 'https://worldmonitor.app' : '#')}"
-               class="variant-option ${SITE_VARIANT !== 'tech' ? 'active' : ''}"
-               data-variant="full"
-               ${!this.isDesktopApp && SITE_VARIANT === 'tech' ? 'target="_blank" rel="noopener"' : ''}
-               title="Geopolitical Intelligence${SITE_VARIANT !== 'tech' ? ' (current)' : ''}">
+            <span class="variant-option active" data-variant="full">
               <span class="variant-icon">🌍</span>
-              <span class="variant-label">WORLD</span>
-            </a>
-            <span class="variant-divider"></span>
-            <a href="${this.isDesktopApp ? '#' : (SITE_VARIANT === 'tech' ? '#' : 'https://tech.worldmonitor.app')}"
-               class="variant-option ${SITE_VARIANT === 'tech' ? 'active' : ''}"
-               data-variant="tech"
-               ${!this.isDesktopApp && SITE_VARIANT !== 'tech' ? 'target="_blank" rel="noopener"' : ''}
-               title="Tech & AI Intelligence${SITE_VARIANT === 'tech' ? ' (current)' : ''}">
-              <span class="variant-icon">💻</span>
-              <span class="variant-label">TECH</span>
-            </a>
+              <span class="variant-label">WORLD TRAVEL</span>
+            </span>
           </div>
           <span class="logo">MONITOR</span><span class="version">v${__APP_VERSION__}</span>
           <a href="https://x.com/eliehabib" target="_blank" rel="noopener" class="credit-link">
@@ -2003,6 +2025,7 @@ export class App {
 
     if (timeRange) {
       this.map.setTimeRange(timeRange);
+      this.currentTimeRange = timeRange;
     }
 
     if (layers) {
@@ -2687,6 +2710,8 @@ export class App {
           pendingItems = null;
         }
         panel.renderNews(items);
+        // Cache raw items for time-filter re-renders
+        this.categoryNewsCache.set(category, items);
 
         const baseline = await updateBaseline(`news:${category}`, items.length);
         const deviation = calculateDeviation(items.length, baseline);
